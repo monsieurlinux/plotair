@@ -1,73 +1,77 @@
-![Air quality plot](img/cuisine.png)
+![Air quality plot](https://github.com/monsieurlinux/plotair/raw/main/img/cuisine.png)
 
 # PlotAir
 
 PlotAir is a Python script that processes one or more CSV files containing [VisiblAir](https://visiblair.com/) sensor data. For each file, it reads the data into a [pandas](https://github.com/pandas-dev/pandas) DataFrame, ignores incorrectly formatted lines, keeps only the most recent data sequence, and generates a [Seaborn](https://github.com/mwaskom/seaborn) plot saved as a PNG file with the same base name as the input CSV.
 
+## Dependencies
+
+PlotAir requires the following external libraries:
+
+* **[pandas](https://github.com/pandas-dev/pandas)**: Used for data manipulation and analysis.
+* **[seaborn](https://github.com/mwaskom/seaborn)**: Used for creating plots.
+
+These libraries and their sub-dependencies will be installed automatically when you install PlotAir.
+
 ## Installation
 
-PlotAir has been developped with Python 3.11 but may work with older versions. You can check your version with the `python3 --version` or `python --version` command. Only a few external libraries are required.
+It is recommended to install PlotAir within a [virtual environment](https://docs.python.org/3/tutorial/venv.html) to avoid conflicts with system packages. Some Linux distributions enforce this. You can use `pipx` to handle the virtual environment automatically, or create one manually and use `pip`.
 
-### Install Dependencies
+### Installation with `pipx`
 
-PlotAir depends on the [pandas](https://github.com/pandas-dev/pandas) and [seaborn](https://github.com/mwaskom/seaborn) libraries and their dependencies. It is recommended to install them within a [virtual environment](https://docs.python.org/3/tutorial/venv.html).
+`pipx` installs PlotAir in an isolated environment and makes it available globally.
 
-Note that the following instructions have only been tested on Linux. On Windows you may need to use the `python` and `pip` commands instead of `python3` and `pip3`.
+**1. Install `pipx`:**
 
-1.  **Create a virtual environment** in a directory of your choice:
+*   **Linux (Debian / Ubuntu / Mint):**
     
     ```bash
-    python3 -m venv plotair-env
+    sudo apt update && sudo apt install pipx
     ```
-    
-2.  **Activate the virtual environment**:
-
-	On Linux and macOS:
-    ```bash
-    source plotair-env/bin/activate
-    ```
-    On Windows:
-    ```bash
-    plotair-env\Scripts\activate
-    ```
-
-3.  **Install the required libraries**:
+*   **Linux (Other) / macOS:**
     
     ```bash
-    pip3 install pandas seaborn
+    python3 -m pip install --user pipx
+    python3 -m pipx ensurepath
+    # Note: Close and restart your terminal after running ensurepath
+    ```
+*   **Windows:**
+    
+    ```bash
+    python -m pip install --user pipx
     ```
 
-After installing the dependencies, you are ready to download and run PlotAir.
+**2. Install PlotAir:**
+
+```bash
+pipx install plotair
+```
+
+### Installation with `pip`
+
+If you prefer to manage the virtual environment manually, you can create and activate it by following this [tutorial](https://docs.python.org/3/tutorial/venv.html). Then install PlotAir:
+
+```bash
+pip install plotair
+```
 
 ## Usage
 
 ### Basic Usage
 
-On Linux you should be able to run PlotAir directly if its location is in your path:
-
 ```bash
-plotair.py <file1> <file2> ...
-```
-
-Otherwise you can run it with Python:
-
-```bash
-python3 plotair.py <file1> <file2> ...
+plotair <file1> <file2> ...
 ```
 
 ### Command-Line Arguments
 
 None for now.
 
-## Configuration
-
-You can edit the configuration constants directly at the top of the plotair.py file if you wish to change the default behavior. For example you can translate the labels of the plot to the language of your choice and you can change the colors of the lines.
-
 ## License
 
 Copyright (c) 2026 Monsieur Linux
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Acknowledgements
 
