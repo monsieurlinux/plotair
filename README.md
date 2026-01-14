@@ -26,20 +26,23 @@ It is recommended to install PlotAir within a [virtual environment](https://docs
 *   **Linux (Debian / Ubuntu / Mint):**
     
     ```bash
-    sudo apt update && sudo apt install pipx
+    sudo apt install pipx
+    pipx ensurepath
     ```
 *   **Linux (Other) / macOS:**
     
     ```bash
     python3 -m pip install --user pipx
     python3 -m pipx ensurepath
-    # Note: Close and restart your terminal after running ensurepath
     ```
 *   **Windows:**
     
     ```bash
     python -m pip install --user pipx
+    python -m pipx ensurepath
     ```
+
+You may need to close and restart your terminal for the PATH changes to take effect.
 
 **2. Install PlotAir:**
 
