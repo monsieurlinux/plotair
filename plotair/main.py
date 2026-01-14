@@ -15,6 +15,7 @@ Licensed under the MIT License. See the LICENSE file for details.
 
 # Standard library imports
 from datetime import datetime
+import glob
 import logging
 import os
 import re
@@ -68,7 +69,13 @@ def main():
         logger.error("No files were provided")
         print(f"Usage: [python] {sys.argv[0]} <file1> <file2> ...")
     else:
-        for filename in sys.argv[1:]:
+        # Create a list containing all files from all patterns like '*.csv',
+        # because under Windows the terminal doesn't expand wildcard arguments.
+        all_files = []
+        for pattern in sys.argv[1:]:
+            all_files.extend(glob.glob(pattern))
+
+        for filename in all_files:
             logger.info(f"Processing {filename}")
             try:
                 df, valid, invalid = read_csv_data(filename)
@@ -158,6 +165,10 @@ def generate_plot(df, filename):
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=PLOT_FONT_SCALE)
 
+    # Set the font to override the OS-dependent default. Noto is installed by
+    # default on both Linux and Windows, but not on macOS.
+    plt.rcParams['font.family'] = 'Noto Sans'
+
     # Set up the matplotlib figure and axes
     fig, ax1 = plt.subplots(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
     ax2 = ax1.twinx()  # Secondary y axis
@@ -185,6 +196,9 @@ def generate_plot(df, filename):
                 facecolor=HUMIDITY_COLOR, alpha=HUMIDITY_ZONE_ALPHA)
 
     # Customize the plot title, labels and ticks
+    co2_label_font = ax1.yaxis.label.get_fontproperties().get_name()
+    logger.debug(f"Font used for CO₂ label: {co2_label_font}")
+
     ax1.set_title(get_plot_title(filename))
     ax1.tick_params(axis='x', rotation=X_AXIS_ROTATION)
     ax1.tick_params(axis='y', labelcolor=CO2_COLOR)
@@ -207,7 +221,7 @@ def generate_plot(df, filename):
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best')
 
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
@@ -220,7 +234,7 @@ def generate_plot(df, filename):
 def get_plot_title(filename):
     match = re.search(r'^(\d+\s*-\s*)?(.*)\.[a-zA-Z]+$', filename)
     plot_title = match.group(2) if match else filename
-    plot_title = plot_title.capitalize()
+    #plot_title = plot_title.capitalize()
     return plot_title
 
 
