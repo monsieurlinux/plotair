@@ -14,20 +14,30 @@ Licensed under the MIT License. See the LICENSE file for details.
 """
 
 # Standard library imports
+import argparse
 import csv
-from datetime import datetime
 import glob
 import logging
 import os
 import re
 import shutil
 import sys
+from datetime import datetime
+from pathlib import Path
 
 # Third-party library imports
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+# Add project root to sys.path so script can be called directly w/o 'python3 -m'
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Local imports
+from plotair import __version__
 
 # Configuration constants
 SENSOR_VISIBLAIR_D_NUM_COL = (5, 6)  # Most rows have 5 columns but some have 6
@@ -53,10 +63,13 @@ CO2_AXIS_MIN_VALUE = 0
 CO2_AXIS_MAX_VALUE = 1200
 TEMP_HUMIDITY_AXIS_MIN_VALUE = 10
 TEMP_HUMIDITY_AXIS_MAX_VALUE = 70
+
+# Cuisine long terme: 0-3000 / 0-60
+# Salon long terme:   0-400  / 0-40
 TVOC_AXIS_MIN_VALUE = 0
-TVOC_AXIS_MAX_VALUE = 3000
+TVOC_AXIS_MAX_VALUE = 400
 CO_FORM_AXIS_MIN_VALUE = 0
-CO_FORM_AXIS_MAX_VALUE = 60
+CO_FORM_AXIS_MAX_VALUE = 40
 
 # See Matplotlib documentation for valid colors:
 # https://matplotlib.org/stable/gallery/color/named_colors.html
@@ -72,44 +85,48 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    # sys.argv[0] is the script name, so arguments start from index 1
-    if len(sys.argv) < 2:
-        logger.error("No files were provided")
-        print(f"Usage: [python] {sys.argv[0]} <file1> <file2> ...")
-    else:
-        # Create a list containing all files from all patterns like '*.csv',
-        # because under Windows the terminal doesn't expand wildcard arguments.
-        all_files = []
-        for pattern in sys.argv[1:]:
-            all_files.extend(glob.glob(pattern))
+    parser = argparse.ArgumentParser()
 
-        for filename in all_files:
-            logger.info(f"Processing {filename}")
-            try:
-                sensor_type = detect_sensor_type(filename)
+    parser.add_argument('filenames', nargs='+', metavar='FILE', 
+                        help='sensor data file to process')
+    parser.add_argument('-v', '--version', action='version', 
+                        version=f"%(prog)s {__version__}")
 
-                if sensor_type == 'visiblair_d':
-                    df, valid, invalid = read_data_visiblair_d(filename)
-                elif sensor_type == 'voc_co_form':
-                    df, valid, invalid = read_data_voc_co_form(filename)
-                else:
-                    logger.error("Unsupported file format")
-                    return
+    args = parser.parse_args()
 
-                if invalid > 0:
-                    logger.info(f"{invalid} invalid row(s) ignored")
+    # Create a list containing all files from all patterns like '*.csv',
+    # because under Windows the terminal doesn't expand wildcard arguments.
+    all_files = []
+    for pattern in args.filenames:
+        all_files.extend(glob.glob(pattern))
 
-                #log_data_frame(df, description = 'before deleting old data')
-                df = delete_old_data(df)
-                #log_data_frame(df, description = 'after deleting old data')
+    for filename in all_files:
+        logger.info(f"Processing {filename}")
+        try:
+            sensor_type = detect_sensor_type(filename)
 
-                if sensor_type == 'visiblair_d':
-                    generate_plot_co2_hum_tmp(df, filename)
-                elif sensor_type == 'voc_co_form':
-                    generate_plot_hum_tmp(df, filename)
-                    generate_plot_voc_co_form(df, filename)
-            except Exception as e:
-                logger.exception(f"Unexpected error: {e}")
+            if sensor_type == 'visiblair_d':
+                df, valid, invalid = read_data_visiblair_d(filename)
+            elif sensor_type == 'voc_co_form':
+                df, valid, invalid = read_data_voc_co_form(filename)
+            else:
+                logger.error("Unsupported file format")
+                return
+
+            if invalid > 0:
+                logger.info(f"{invalid} invalid row(s) ignored")
+
+            #log_data_frame(df, description = 'before deleting old data')
+            df = delete_old_data(df)
+            #log_data_frame(df, description = 'after deleting old data')
+
+            if sensor_type == 'visiblair_d':
+                generate_plot_co2_hum_tmp(df, filename)
+            elif sensor_type == 'voc_co_form':
+                generate_plot_hum_tmp(df, filename)
+                generate_plot_voc_co_form(df, filename)
+        except Exception as e:
+            logger.exception(f"Unexpected error: {e}")
 
 
 def detect_sensor_type(filename):
@@ -120,7 +137,7 @@ def detect_sensor_type(filename):
         first_line = next(reader)
         num_fields = len(first_line)
         
-        if num_fields == SENSOR_VOC_CO_FORM_NUM_COL[0]:
+        if num_fields >= SENSOR_VOC_CO_FORM_NUM_COL[0] and num_fields <= SENSOR_VOC_CO_FORM_NUM_COL[1]:
             sensor_type = 'voc_co_form'
         elif num_fields >= SENSOR_VISIBLAIR_D_NUM_COL[0] and num_fields <= SENSOR_VISIBLAIR_D_NUM_COL[1]:
             sensor_type = 'visiblair_d'
@@ -196,9 +213,6 @@ def read_data_voc_co_form(filename):
 
     df = df.set_index('date')
     df = df.sort_index()  # Sort in case some dates are not in order
-
-    # Display the first few rows to verify the data
-    #log_data_frame(df, description = 'read_data_voc_co_form')
 
     return df, num_valid_rows, num_invalid_rows
 

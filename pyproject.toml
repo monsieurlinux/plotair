@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plotair"
-version = "0.1.1"
+dynamic = ["version"]
 description = "Generate CO₂, humidity and temperature plots from VisiblAir sensor CSV files."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -31,4 +31,7 @@ plotair = "plotair.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["plotair"]
+
+[tool.hatch.version]
+path = "plotair/__init__.py"
 
