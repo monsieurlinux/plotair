@@ -89,6 +89,8 @@ def main():
 
     parser.add_argument('filenames', nargs='+', metavar='FILE', 
                         help='sensor data file to process')
+    parser.add_argument('-a', '--all-dates', action='store_true',
+                        help='plot all dates, not only latest sequence')
     parser.add_argument('-v', '--version', action='version', 
                         version=f"%(prog)s {__version__}")
 
@@ -116,9 +118,10 @@ def main():
             if invalid > 0:
                 logger.info(f"{invalid} invalid row(s) ignored")
 
-            #log_data_frame(df, description = 'before deleting old data')
-            df = delete_old_data(df)
-            #log_data_frame(df, description = 'after deleting old data')
+            if not args.all_dates:
+                #log_data_frame(df, description = 'before deleting old data')
+                df = delete_old_data(df)
+                #log_data_frame(df, description = 'after deleting old data')
 
             if sensor_type == 'visiblair_d':
                 generate_plot_co2_hum_tmp(df, filename)
