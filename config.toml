@@ -1,5 +1,5 @@
 [sensors]
-visible_air_d_num_col = [5, 6]  # Most rows have 5 columns but some have 6
+visiblair_d_num_col = [5, 6]  # Most rows have 5 columns but some have 6
 voc_co_form_num_col = [7, 7]
 
 [data]
@@ -20,7 +20,7 @@ form = 'Formaldehyde (ppb)'
 
 [axis_ranges]
 co2 = [0, 1200]
-temp_humidity = [10, 70]
+temp_h = [10, 70]
 tvoc = [0, 400]
 co_form = [0, 40]
 

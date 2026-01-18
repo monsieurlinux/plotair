@@ -107,7 +107,7 @@ def detect_sensor_type(filename):
         reader = csv.reader(file)
         first_line = next(reader)
         num_fields = len(first_line)
-        vis_min, vis_max = CONFIG['sensors']['visible_air_d_num_col']
+        vis_min, vis_max = CONFIG['sensors']['visiblair_d_num_col']
         voc_min, voc_max = CONFIG['sensors']['voc_co_form_num_col']
         
         if voc_min <= num_fields <= voc_max:
@@ -135,7 +135,7 @@ def read_data_visiblair_d(filename):
         for line in f:
             line = line.strip()
             fields = line.split(',')
-            vis_min, vis_max = CONFIG['sensors']['visible_air_d_num_col']
+            vis_min, vis_max = CONFIG['sensors']['visiblair_d_num_col']
             
             if not (vis_min <= len(fields) <= vis_max):
                 # Skip lines with an invalid number of columns
@@ -243,7 +243,7 @@ def generate_plot_co2_hum_tmp(df, filename):
 
     # Set the ranges for both y axes
     cmin, cmax = CONFIG['axis_ranges']['co2']
-    tmin, tmax = CONFIG['axis_ranges']['temp_humidity']
+    tmin, tmax = CONFIG['axis_ranges']['temp_h']
     ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
     ax2.set_ylim(tmin, tmax)
 
@@ -319,7 +319,7 @@ def generate_plot_hum_tmp(df, filename):
 
     # Set the ranges for both y axes
     cmin, cmax = CONFIG['axis_ranges']['co2']
-    tmin, tmax = CONFIG['axis_ranges']['temp_humidity']
+    tmin, tmax = CONFIG['axis_ranges']['temp_h']
     ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
     ax2.set_ylim(tmin, tmax)
 
