@@ -1,0 +1,39 @@
+[sensors]
+visible_air_d_num_col = [5, 6]  # Most rows have 5 columns but some have 6
+voc_co_form_num_col = [7, 7]
+
+[data]
+max_missing_samples = 4
+
+[plot]
+font_scale = 1.4
+size = [11.0, 8.5]
+
+[labels]
+date_rotation = 30
+co2 = 'CO₂ (ppm)'
+temp = 'Température (°C)'
+humidity = 'Humidité (%)'
+tvoc = 'TVOC (ppb)'
+co = 'Carbon Monoxide (ppm x 10)'
+form = 'Formaldehyde (ppb)'
+
+[axis_ranges]
+co2 = [0, 1200]
+temp_humidity = [10, 70]
+tvoc = [0, 400]
+co_form = [0, 40]
+
+[humidity_zone]
+range = [40, 60]
+opacity = 0.075  # 0 is fully transparent and 1 is fully opaque
+
+[colors]
+# See Matplotlib documentation for valid colors:
+# https://matplotlib.org/stable/gallery/color/named_colors.html
+co2 = 'tab:blue'
+tvoc = 'tab:purple'
+co = 'tab:cyan'
+form = 'tab:red'
+humidity = 'tab:green'
+temp = 'tab:orange'

@@ -22,6 +22,7 @@ import os
 import re
 import shutil
 import sys
+import tomllib
 from datetime import datetime
 from pathlib import Path
 
@@ -32,59 +33,26 @@ import pandas as pd
 import seaborn as sns
 
 # Add project root to sys.path so script can be called directly w/o 'python3 -m'
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Local imports
 from plotair import __version__
 
-# Configuration constants
-SENSOR_VISIBLAIR_D_NUM_COL = (5, 6)  # Most rows have 5 columns but some have 6
-SENSOR_VOC_CO_FORM_NUM_COL = (7, 7)
-MAX_MISSING_SAMPLES = 4
-PLOT_FONT_SCALE = 1.4
-PLOT_WIDTH = 11
-PLOT_HEIGHT = 8.5
-CO2_LABEL = 'CO₂ (ppm)'
-TVOC_LABEL = 'TVOC (ppb)'
-CO_LABEL = 'Carbon Monoxide (ppm x 10)'
-FORM_LABEL = 'Formaldehyde (ppb)'
-HUMIDITY_LABEL = 'Humidité (%)'
-TEMP_LABEL = 'Température (°C)'
-X_AXIS_ROTATION = 30
-HUMIDITY_ZONE_MIN = 40
-HUMIDITY_ZONE_MAX = 60
-HUMIDITY_ZONE_ALPHA = 0.075
-
-# 8000/4000/2000/1600 span for y1 axis work well with 80 span for y2 axis
-# 6000/3000/    /1200 span for y1 axis work well with 60 span for y2 axis
-CO2_AXIS_MIN_VALUE = 0
-CO2_AXIS_MAX_VALUE = 1200
-TEMP_HUMIDITY_AXIS_MIN_VALUE = 10
-TEMP_HUMIDITY_AXIS_MAX_VALUE = 70
-
-# Cuisine long terme: 0-3000 / 0-60
-# Salon long terme:   0-400  / 0-40
-TVOC_AXIS_MIN_VALUE = 0
-TVOC_AXIS_MAX_VALUE = 400
-CO_FORM_AXIS_MIN_VALUE = 0
-CO_FORM_AXIS_MAX_VALUE = 40
-
-# See Matplotlib documentation for valid colors:
-# https://matplotlib.org/stable/gallery/color/named_colors.html
-CO2_COLOR = 'tab:blue'
-TVOC_COLOR = 'tab:purple'
-CO_COLOR = 'tab:cyan'
-FORM_COLOR = 'tab:red'
-HUMIDITY_COLOR = 'tab:green'
-TEMP_COLOR = 'tab:orange'
+CONFIG = {}
 
 # Get a logger for this script
 logger = logging.getLogger(__name__)
 
 
 def main():
+    try:
+        load_config()
+    except FileNotFoundError as e:
+        logger.error(f'Failed to load config: {e}')
+        return
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument('filenames', nargs='+', metavar='FILE', 
@@ -139,10 +107,12 @@ def detect_sensor_type(filename):
         reader = csv.reader(file)
         first_line = next(reader)
         num_fields = len(first_line)
+        vis_min, vis_max = CONFIG['sensors']['visible_air_d_num_col']
+        voc_min, voc_max = CONFIG['sensors']['voc_co_form_num_col']
         
-        if num_fields >= SENSOR_VOC_CO_FORM_NUM_COL[0] and num_fields <= SENSOR_VOC_CO_FORM_NUM_COL[1]:
+        if voc_min <= num_fields <= voc_max:
             sensor_type = 'voc_co_form'
-        elif num_fields >= SENSOR_VISIBLAIR_D_NUM_COL[0] and num_fields <= SENSOR_VISIBLAIR_D_NUM_COL[1]:
+        elif vis_min <= num_fields <= vis_max:
             sensor_type = 'visiblair_d'
         
     #logger.debug(f"First line: {first_line}")
@@ -165,8 +135,9 @@ def read_data_visiblair_d(filename):
         for line in f:
             line = line.strip()
             fields = line.split(',')
+            vis_min, vis_max = CONFIG['sensors']['visible_air_d_num_col']
             
-            if len(fields) < SENSOR_VISIBLAIR_D_NUM_COL[0] or len(fields) > SENSOR_VISIBLAIR_D_NUM_COL[1]:
+            if not (vis_min <= len(fields) <= vis_max):
                 # Skip lines with an invalid number of columns
                 logger.debug(f"Skipping line (number of columns): {line}")
                 num_invalid_rows += 1
@@ -237,7 +208,7 @@ def delete_old_data(df):
             else:
                 current_interval = next_date - current_date
 
-                if (current_interval / sampling_interval) > MAX_MISSING_SAMPLES:
+                if (current_interval / sampling_interval) > CONFIG['data']['max_missing_samples']:
                     # This sample is from older sequence, keep only more recent
                     df = df[df.index >= next_date]
                     break
@@ -252,27 +223,29 @@ def generate_plot_co2_hum_tmp(df, filename):
     df = df.reset_index()
 
     # Set a theme and scale all fonts
-    sns.set_theme(style='whitegrid', font_scale=PLOT_FONT_SCALE)
+    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
     # Set the font to override the OS-dependent default. Noto is installed by
     # default on both Linux and Windows, but not on macOS.
     plt.rcParams['font.family'] = 'Noto Sans'
 
     # Set up the matplotlib figure and axes
-    fig, ax1 = plt.subplots(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
+    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
     # Plot the data series
-    sns.lineplot(data=df, x='date', y='co2', ax=ax1, color=CO2_COLOR,
-                 label=CO2_LABEL, legend=False)
-    sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=HUMIDITY_COLOR,
-                 label=HUMIDITY_LABEL, legend=False)
-    sns.lineplot(data=df, x='date', y='temperature', ax=ax2, color=TEMP_COLOR,
-                 label=TEMP_LABEL, legend=False)
+    sns.lineplot(data=df, x='date', y='co2', ax=ax1, color=CONFIG['colors']['co2'],
+                 label=CONFIG['labels']['co2'], legend=False)
+    sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=CONFIG['colors']['humidity'],
+                 label=CONFIG['labels']['humidity'], legend=False)
+    sns.lineplot(data=df, x='date', y='temperature', ax=ax2, color=CONFIG['colors']['temp'],
+                 label=CONFIG['labels']['temp'], legend=False)
 
     # Set the ranges for both y axes
-    ax1.set_ylim(CO2_AXIS_MIN_VALUE, CO2_AXIS_MAX_VALUE)  # df['co2'].max() * 1.05
-    ax2.set_ylim(TEMP_HUMIDITY_AXIS_MIN_VALUE, TEMP_HUMIDITY_AXIS_MAX_VALUE)
+    cmin, cmax = CONFIG['axis_ranges']['co2']
+    tmin, tmax = CONFIG['axis_ranges']['temp_humidity']
+    ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
+    ax2.set_ylim(tmin, tmax)
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
@@ -281,18 +254,19 @@ def generate_plot_co2_hum_tmp(df, filename):
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
-    ax2.axhspan(ymin=HUMIDITY_ZONE_MIN, ymax=HUMIDITY_ZONE_MAX,
-                facecolor=HUMIDITY_COLOR, alpha=HUMIDITY_ZONE_ALPHA)
+    hmin, hmax = CONFIG['humidity_zone']['range']
+    ax2.axhspan(ymin=hmin, ymax=hmax,
+                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
 
     # Customize the plot title, labels and ticks
     co2_label_font = ax1.yaxis.label.get_fontproperties().get_name()
     logger.debug(f"Font used for CO₂ label: {co2_label_font}")
 
     ax1.set_title(get_plot_title(filename))
-    ax1.tick_params(axis='x', rotation=X_AXIS_ROTATION)
-    ax1.tick_params(axis='y', labelcolor=CO2_COLOR)
+    ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
+    ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
     ax1.set_xlabel('')
-    ax1.set_ylabel(CO2_LABEL, color=CO2_COLOR)
+    ax1.set_ylabel(CONFIG['labels']['co2'], color=CONFIG['colors']['co2'])
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
@@ -300,12 +274,12 @@ def generate_plot_co2_hum_tmp(df, filename):
     y = 0.5   # Vertically centered
 
     # Place the first (bottom) part of the label
-    ax2.text(x, y, TEMP_LABEL + '  ', transform=ax2.transAxes,
-             color=TEMP_COLOR, rotation='vertical', ha='center', va='top')
+    ax2.text(x, y, CONFIG['labels']['temp'] + '  ', transform=ax2.transAxes,
+             color=CONFIG['colors']['temp'], rotation='vertical', ha='center', va='top')
 
     # Place the second (top) part of the label
-    ax2.text(x, y, '  ' + HUMIDITY_LABEL, transform=ax2.transAxes,
-            color=HUMIDITY_COLOR, rotation='vertical', ha='center', va='bottom')
+    ax2.text(x, y, '  ' + CONFIG['labels']['humidity'], transform=ax2.transAxes,
+            color=CONFIG['colors']['humidity'], rotation='vertical', ha='center', va='bottom')
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -325,27 +299,29 @@ def generate_plot_hum_tmp(df, filename):
     df = df.reset_index()
 
     # Set a theme and scale all fonts
-    sns.set_theme(style='whitegrid', font_scale=PLOT_FONT_SCALE)
+    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
     # Set the font to override the OS-dependent default. Noto is installed by
     # default on both Linux and Windows, but not on macOS.
     plt.rcParams['font.family'] = 'Noto Sans'
 
     # Set up the matplotlib figure and axes
-    fig, ax1 = plt.subplots(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
+    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
     # Plot the data series
-    #sns.lineplot(data=df, x='date', y='co2', ax=ax1, color=CO2_COLOR,
-    #             label=CO2_LABEL, legend=False)
-    sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=HUMIDITY_COLOR,
-                 label=HUMIDITY_LABEL, legend=False)
-    sns.lineplot(data=df, x='date', y='temperature', ax=ax2, color=TEMP_COLOR,
-                 label=TEMP_LABEL, legend=False)
+    #sns.lineplot(data=df, x='date', y='co2', ax=ax1, color=CONFIG['colors']['co2'],
+    #             label=CONFIG['labels']['co2'], legend=False)
+    sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=CONFIG['colors']['humidity'],
+                 label=CONFIG['labels']['humidity'], legend=False)
+    sns.lineplot(data=df, x='date', y='temperature', ax=ax2, color=CONFIG['colors']['temp'],
+                 label=CONFIG['labels']['temp'], legend=False)
 
     # Set the ranges for both y axes
-    ax1.set_ylim(CO2_AXIS_MIN_VALUE, CO2_AXIS_MAX_VALUE)  # df['co2'].max() * 1.05
-    ax2.set_ylim(TEMP_HUMIDITY_AXIS_MIN_VALUE, TEMP_HUMIDITY_AXIS_MAX_VALUE)
+    cmin, cmax = CONFIG['axis_ranges']['co2']
+    tmin, tmax = CONFIG['axis_ranges']['temp_humidity']
+    ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
+    ax2.set_ylim(tmin, tmax)
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
@@ -354,15 +330,16 @@ def generate_plot_hum_tmp(df, filename):
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
-    ax2.axhspan(ymin=HUMIDITY_ZONE_MIN, ymax=HUMIDITY_ZONE_MAX,
-                facecolor=HUMIDITY_COLOR, alpha=HUMIDITY_ZONE_ALPHA)
+    hmin, hmax = CONFIG['humidity_zone']['range']
+    ax2.axhspan(ymin=hmin, ymax=hmax,
+                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(filename))
-    ax1.tick_params(axis='x', rotation=X_AXIS_ROTATION)
-    #ax1.tick_params(axis='y', labelcolor=CO2_COLOR)
+    ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
+    #ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
     ax1.set_xlabel('')
-    #ax1.set_ylabel(CO2_LABEL, color=CO2_COLOR)
+    #ax1.set_ylabel(CONFIG['labels']['co2'], color=CONFIG['colors']['co2'])
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
@@ -370,12 +347,12 @@ def generate_plot_hum_tmp(df, filename):
     y = 0.5   # Vertically centered
 
     # Place the first (bottom) part of the label
-    ax2.text(x, y, TEMP_LABEL + '  ', transform=ax2.transAxes,
-             color=TEMP_COLOR, rotation='vertical', ha='center', va='top')
+    ax2.text(x, y, CONFIG['labels']['temp'] + '  ', transform=ax2.transAxes,
+             color=CONFIG['colors']['temp'], rotation='vertical', ha='center', va='top')
 
     # Place the second (top) part of the label
-    ax2.text(x, y, '  ' + HUMIDITY_LABEL, transform=ax2.transAxes,
-            color=HUMIDITY_COLOR, rotation='vertical', ha='center', va='bottom')
+    ax2.text(x, y, '  ' + CONFIG['labels']['humidity'], transform=ax2.transAxes,
+            color=CONFIG['colors']['humidity'], rotation='vertical', ha='center', va='bottom')
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -400,30 +377,32 @@ def generate_plot_voc_co_form(df, filename):
     df['co_scaled'] = df['co'] * 10
 
     # Set a theme and scale all fonts
-    sns.set_theme(style='whitegrid', font_scale=PLOT_FONT_SCALE)
+    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
     # Set the font to override the OS-dependent default. Noto is installed by
     # default on both Linux and Windows, but not on macOS.
     plt.rcParams['font.family'] = 'Noto Sans'
 
     # Set up the matplotlib figure and axes
-    fig, ax1 = plt.subplots(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
+    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
     # Plot the data series
     # Filter the DataFrame to only include rows where 'form' is not zero
     df_filtered = df[df['form'] != 0]
 
-    sns.lineplot(data=df, x='date', y='tvoc', ax=ax1, color=TVOC_COLOR,
-                 label=TVOC_LABEL, legend=False)
-    sns.lineplot(data=df, x='date', y='co_scaled', ax=ax2, color=CO_COLOR,
-                 label=CO_LABEL, legend=False)
-    sns.lineplot(data=df_filtered, x='date', y='form', ax=ax2, color=FORM_COLOR,
-                 label=FORM_LABEL, legend=False)
+    sns.lineplot(data=df, x='date', y='tvoc', ax=ax1, color=CONFIG['colors']['tvoc'],
+                 label=CONFIG['labels']['tvoc'], legend=False)
+    sns.lineplot(data=df, x='date', y='co_scaled', ax=ax2, color=CONFIG['colors']['co'],
+                 label=CONFIG['labels']['co'], legend=False)
+    sns.lineplot(data=df_filtered, x='date', y='form', ax=ax2, color=CONFIG['colors']['form'],
+                 label=CONFIG['labels']['form'], legend=False)
 
     # Set the ranges for both y axes
-    ax1.set_ylim(TVOC_AXIS_MIN_VALUE, TVOC_AXIS_MAX_VALUE)
-    ax2.set_ylim(CO_FORM_AXIS_MIN_VALUE, CO_FORM_AXIS_MAX_VALUE)
+    tmin, tmax = CONFIG['axis_ranges']['tvoc']
+    cmin, cmax = CONFIG['axis_ranges']['co_form']
+    ax1.set_ylim(tmin, tmax)
+    ax2.set_ylim(cmin, cmax)
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
@@ -432,15 +411,16 @@ def generate_plot_voc_co_form(df, filename):
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
-    #ax2.axhspan(ymin=HUMIDITY_ZONE_MIN, ymax=HUMIDITY_ZONE_MAX,
-    #            facecolor=HUMIDITY_COLOR, alpha=HUMIDITY_ZONE_ALPHA)
+    #hmin, hmax = CONFIG['humidity_zone']['range']
+    #ax2.axhspan(ymin=hmin, ymax=hmax,
+    #            facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(filename))
-    ax1.tick_params(axis='x', rotation=X_AXIS_ROTATION)
-    ax1.tick_params(axis='y', labelcolor=TVOC_COLOR)
+    ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
+    ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['tvoc'])
     ax1.set_xlabel('')
-    ax1.set_ylabel(TVOC_LABEL, color=TVOC_COLOR)
+    ax1.set_ylabel(CONFIG['labels']['tvoc'], color=CONFIG['colors']['tvoc'])
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
@@ -448,12 +428,12 @@ def generate_plot_voc_co_form(df, filename):
     y = 0.5   # Vertically centered
 
     # Place the first (bottom) part of the label
-    ax2.text(x, y, CO_LABEL + '  ', transform=ax2.transAxes,
-             color=CO_COLOR, rotation='vertical', ha='center', va='top')
+    ax2.text(x, y, CONFIG['labels']['co'] + '  ', transform=ax2.transAxes,
+             color=CONFIG['colors']['co'], rotation='vertical', ha='center', va='top')
 
     # Place the second (top) part of the label
-    ax2.text(x, y, '  ' + FORM_LABEL, transform=ax2.transAxes,
-            color=FORM_COLOR, rotation='vertical', ha='center', va='bottom')
+    ax2.text(x, y, '  ' + CONFIG['labels']['form'], transform=ax2.transAxes,
+            color=CONFIG['colors']['form'], rotation='vertical', ha='center', va='bottom')
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -466,6 +446,33 @@ def generate_plot_voc_co_form(df, filename):
     # Save the plot as a PNG image
     plt.savefig(get_png_filename(filename, '-vcf'))
     plt.close()
+
+
+def load_config():
+    global CONFIG
+
+    app_name = 'plotair'
+    config_file = 'config.toml'
+
+    config_dir = Path.home() / f'.{app_name}'
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    user_config_file = config_dir / config_file
+    default_config_file = PROJECT_ROOT / config_file
+
+    if not user_config_file.exists():
+        logger.info(f'Config file not found at {user_config_file}')
+
+        if default_config_file.exists():
+            shutil.copy2(default_config_file, user_config_file)
+            logger.info(f'Config initialized at {user_config_file}')
+        else:
+            raise FileNotFoundError(f'Default config missing at {default_config_file}')
+    else:
+        logger.info(f'Found config file at {user_config_file}')
+
+    with open(user_config_file, "rb") as f:
+        CONFIG = tomllib.load(f)
 
 
 def get_plot_title(filename):
