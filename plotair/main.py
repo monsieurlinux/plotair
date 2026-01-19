@@ -18,7 +18,6 @@ import argparse
 import csv
 import glob
 import logging
-import os
 import re
 import shutil
 import sys
@@ -47,22 +46,26 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    try:
-        load_config()
-    except FileNotFoundError as e:
-        logger.error(f'Failed to load config: {e}')
-        return
-
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('filenames', nargs='+', metavar='FILE', 
+    parser.add_argument('filenames', nargs='+', metavar='FILE',
                         help='sensor data file to process')
     parser.add_argument('-a', '--all-dates', action='store_true',
                         help='plot all dates, not only latest sequence')
+    parser.add_argument('-r', '--reset-config', action='store_true',
+                        help='reset configuration file to default')
+    parser.add_argument('-s', '--start-date', metavar='DATE',
+                        help='date at which to start the plot (YYYY-MM-DD)')
     parser.add_argument('-v', '--version', action='version', 
                         version=f"%(prog)s {__version__}")
 
     args = parser.parse_args()
+
+    try:
+        load_config(args.reset_config)
+    except FileNotFoundError as e:
+        logger.error(f'Failed to load config: {e}')
+        return
 
     # Create a list containing all files from all patterns like '*.csv',
     # because under Windows the terminal doesn't expand wildcard arguments.
@@ -77,6 +80,8 @@ def main():
 
             if sensor_type == 'visiblair_d':
                 df, valid, invalid = read_data_visiblair_d(filename)
+            elif sensor_type == 'visiblair_e':
+                df, valid, invalid = read_data_visiblair_e(filename)
             elif sensor_type == 'voc_co_form':
                 df, valid, invalid = read_data_voc_co_form(filename)
             else:
@@ -88,10 +93,12 @@ def main():
 
             if not args.all_dates:
                 #log_data_frame(df, description = 'before deleting old data')
-                df = delete_old_data(df)
+                df = delete_old_data(df, args.start_date)
                 #log_data_frame(df, description = 'after deleting old data')
 
             if sensor_type == 'visiblair_d':
+                generate_plot_co2_hum_tmp(df, filename)
+            if sensor_type == 'visiblair_e':
                 generate_plot_co2_hum_tmp(df, filename)
             elif sensor_type == 'voc_co_form':
                 generate_plot_hum_tmp(df, filename)
@@ -102,24 +109,23 @@ def main():
 
 def detect_sensor_type(filename):
     sensor_type = None
+    visiblair_d_num_col = (5, 6) # Most rows have 5 columns but some have 6
+    visiblair_e_num_col = (21, 21)
+    voc_co_form_num_col = (7, 7)
 
     with open(filename, 'r', newline='', encoding='utf-8') as file:
         reader = csv.reader(file)
         first_line = next(reader)
         num_fields = len(first_line)
-        vis_min, vis_max = CONFIG['sensors']['visiblair_d_num_col']
-        voc_min, voc_max = CONFIG['sensors']['voc_co_form_num_col']
         
-        if voc_min <= num_fields <= voc_max:
-            sensor_type = 'voc_co_form'
-        elif vis_min <= num_fields <= vis_max:
+        if visiblair_d_num_col[0] <= num_fields <= visiblair_d_num_col[1]:
             sensor_type = 'visiblair_d'
+        elif visiblair_e_num_col[0] <= num_fields <= visiblair_e_num_col[1]:
+            sensor_type = 'visiblair_e'
+        elif voc_co_form_num_col[0] <= num_fields <= voc_co_form_num_col[1]:
+            sensor_type = 'voc_co_form'
         
-    #logger.debug(f"First line: {first_line}")
-    #logger.debug(f"First line type: {type(first_line)}")
-    logger.debug(f"Number of fields: {num_fields}")
     logger.debug(f"Sensor type: {sensor_type}")
-    #sys.exit()
     
     return sensor_type
 
@@ -169,6 +175,28 @@ def read_data_visiblair_d(filename):
     return df, num_valid_rows, num_invalid_rows
 
 
+def read_data_visiblair_e(filename):
+    num_valid_rows = 0
+    num_invalid_rows = 0
+
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(filename)
+
+    # Rename the columns
+    df.columns = ['uuid', 'date', 'co2', 'humidity', 'temperature', 'pm0.1',
+                  'pm0.3', 'pm0.5', 'pm1', 'pm2.5', 'pm5', 'pm10', 'pressure',
+                  'voc_index', 'firmware', 'model', 'pcb', 'display_rate',
+                  'is_charging', 'is_ac_in', 'batt_voltage']
+
+    # Convert the 'date' column to pandas datetime objects
+    df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d %H:%M:%S')
+
+    df = df.set_index('date')
+    df = df.sort_index()  # Sort in case some dates are not in order
+
+    return df, num_valid_rows, num_invalid_rows
+
+
 def read_data_voc_co_form(filename):
     num_valid_rows = 0
     num_invalid_rows = 0
@@ -191,29 +219,34 @@ def read_data_voc_co_form(filename):
     return df, num_valid_rows, num_invalid_rows
 
 
-def delete_old_data(df):
-    """
-    Iterate backwards through the samples to find the first time gap larger
-    than the sampling interval. Then return only the latest data sequence.
-    """
-    sampling_interval = None
-    next_date = df.index[-1]
+def delete_old_data(df, start_date = None):
+    if start_date:
+        # Keep only the data range to be plotted (use pandas dates types)
+        sd = pd.Timestamp(start_date)
+        df = df[df.index >= sd]
+        logger.debug(f'delete_old_data: start date is {sd}')
 
-    for date in reversed(list(df.index)):
-        current_date = date
+    else:
+        # Iterate backwards through the samples to find the first time gap larger
+        # than the sampling interval. Then return only the latest data sequence.
+        sampling_interval = None
+        next_date = df.index[-1]
 
-        if current_date != next_date:
-            if sampling_interval is None:
-                sampling_interval = next_date - current_date
-            else:
-                current_interval = next_date - current_date
+        for date in reversed(list(df.index)):
+            current_date = date
 
-                if (current_interval / sampling_interval) > CONFIG['data']['max_missing_samples']:
-                    # This sample is from older sequence, keep only more recent
-                    df = df[df.index >= next_date]
-                    break
-        
-        next_date = current_date
+            if current_date != next_date:
+                if sampling_interval is None:
+                    sampling_interval = next_date - current_date
+                else:
+                    current_interval = next_date - current_date
+
+                    if (current_interval / sampling_interval) > CONFIG['data']['max_missing_samples']:
+                        # This sample is from older sequence, keep only more recent
+                        df = df[df.index >= next_date]
+                        break
+
+            next_date = current_date
         
     return df
     
@@ -259,9 +292,6 @@ def generate_plot_co2_hum_tmp(df, filename):
                 facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
 
     # Customize the plot title, labels and ticks
-    co2_label_font = ax1.yaxis.label.get_fontproperties().get_name()
-    logger.debug(f"Font used for CO₂ label: {co2_label_font}")
-
     ax1.set_title(get_plot_title(filename))
     ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
     ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
@@ -288,7 +318,8 @@ def generate_plot_co2_hum_tmp(df, filename):
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best')
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+               loc=CONFIG['labels']['legend_location'])
 
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
@@ -365,7 +396,8 @@ def generate_plot_hum_tmp(df, filename):
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best')
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+               loc=CONFIG['labels']['legend_location'])
 
     # Remove the left y-axis elements from ax1
     ax1.spines['left'].set_visible(False)
@@ -450,7 +482,8 @@ def generate_plot_voc_co_form(df, filename):
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best')
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+               loc=CONFIG['labels']['legend_location'])
 
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
@@ -468,7 +501,7 @@ def get_label_center(bottom_label, top_label):
     return center
 
 
-def load_config():
+def load_config(reset_config = False):
     global CONFIG
 
     app_name = 'plotair'
@@ -480,24 +513,23 @@ def load_config():
     user_config_file = config_dir / config_file
     default_config_file = PROJECT_ROOT / config_file
 
-    if not user_config_file.exists():
-        logger.info(f'Config file not found at {user_config_file}')
-
+    if not user_config_file.exists() or reset_config:
         if default_config_file.exists():
             shutil.copy2(default_config_file, user_config_file)
-            logger.info(f'Config initialized at {user_config_file}')
+            logger.debug(f'Config initialized at {user_config_file}')
         else:
             raise FileNotFoundError(f'Default config missing at {default_config_file}')
     else:
-        logger.info(f'Found config file at {user_config_file}')
+        logger.debug(f'Found config file at {user_config_file}')
 
     with open(user_config_file, "rb") as f:
         CONFIG = tomllib.load(f)
 
 
 def get_plot_title(filename):
-    match = re.search(r'^(\d+\s*-\s*)?(.*)\.[a-zA-Z]+$', filename)
-    plot_title = match.group(2) if match else filename
+    stem = Path(filename).stem
+    match = re.search(r'^(\d+\s*-\s*)?(.*)$', stem)
+    plot_title = match.group(2) if match else stem
 
     # Capitalize only the first character
     if plot_title: plot_title = plot_title[0].upper() + plot_title[1:]
@@ -506,8 +538,8 @@ def get_plot_title(filename):
 
 
 def get_png_filename(filename, suffix = ''):
-    root, ext = os.path.splitext(filename)
-    return f"{root}{suffix}.png"
+    p = Path(filename)
+    return f"{p.parent}/{p.stem}{suffix}.png"
 
 
 def log_data_frame(df, description = ''):
