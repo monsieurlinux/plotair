@@ -120,7 +120,7 @@ def main():
                     generate_plot_co2_hum_tmp(df, filename, args.title)
                 elif file_format == 'visiblair_e':
                     generate_plot_co2_hum_tmp(df, filename, args.title)
-                elif file_format == 'voc_co_form':
+                elif file_format == 'graywolf_ds':
                     generate_plot_hum_tmp(df, filename, args.title)
                     generate_plot_voc_co_form(df, filename, args.title)
             except Exception as e:
@@ -131,7 +131,7 @@ def detect_file_format(filename):
     file_format = None
     visiblair_d_num_col = (5, 6) # Most rows have 5 columns but some have 6
     visiblair_e_num_col = (21, 21)
-    voc_co_form_num_col = (7, 7)
+    graywolf_ds_num_col = (7, 7)
 
     with open(filename, 'r', newline='', encoding='utf-8') as file:
         reader = csv.reader(file)
@@ -145,9 +145,9 @@ def detect_file_format(filename):
         elif (visiblair_e_num_col[0] <= num_fields <= visiblair_e_num_col[1] and
               first_line[1] == 'Timestamp'):
             file_format = 'visiblair_e'
-        elif (voc_co_form_num_col[0] <= num_fields <= voc_co_form_num_col[1] and
+        elif (graywolf_ds_num_col[0] <= num_fields <= graywolf_ds_num_col[1] and
               first_line[0] == 'Date Time'):
-            file_format = 'voc_co_form'
+            file_format = 'graywolf_ds'
         
     logger.debug(f'File format: {file_format}')
     
@@ -166,8 +166,8 @@ def read_data(filename):
         df, num_valid_rows, num_invalid_rows = read_data_visiblair_d(filename)
     elif file_format == 'visiblair_e':
         df, num_valid_rows, num_invalid_rows = read_data_visiblair_e(filename)
-    elif file_format == 'voc_co_form':
-        df, num_valid_rows, num_invalid_rows = read_data_voc_co_form(filename)
+    elif file_format == 'graywolf_ds':
+        df, num_valid_rows, num_invalid_rows = read_data_graywolf_ds(filename)
 
     return file_format, df, num_valid_rows, num_invalid_rows
 
@@ -258,7 +258,7 @@ def read_data_visiblair_e(filename):
     return df, num_valid_rows, num_invalid_rows
 
 
-def read_data_voc_co_form(filename):
+def read_data_graywolf_ds(filename):
     num_valid_rows = 0
     num_invalid_rows = 0
 
