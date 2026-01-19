@@ -51,13 +51,17 @@ def main():
     parser.add_argument('filenames', nargs='+', metavar='FILE',
                         help='sensor data file to process')
     parser.add_argument('-a', '--all-dates', action='store_true',
-                        help='plot all dates, not only latest sequence')
+                        help='plot all dates (otherwise only latest sequence)')
+    parser.add_argument('-m', '--merge', metavar='FIELD',
+                        help='merge field from file1 to file2, and output to file3')
     parser.add_argument('-r', '--reset-config', action='store_true',
                         help='reset configuration file to default')
     parser.add_argument('-s', '--start-date', metavar='DATE',
                         help='date at which to start the plot (YYYY-MM-DD)')
+    parser.add_argument('-t', '--title',
+                        help='set the plot title')
     parser.add_argument('-v', '--version', action='version', 
-                        version=f"%(prog)s {__version__}")
+                        version=f'%(prog)s {__version__}')
 
     args = parser.parse_args()
 
@@ -67,48 +71,64 @@ def main():
         logger.error(f'Failed to load config: {e}')
         return
 
-    # Create a list containing all files from all patterns like '*.csv',
-    # because under Windows the terminal doesn't expand wildcard arguments.
-    all_files = []
-    for pattern in args.filenames:
-        all_files.extend(glob.glob(pattern))
+    if args.merge:
+        field = args.merge
+        num_files = len(args.filenames)
 
-    for filename in all_files:
-        logger.info(f"Processing {filename}")
-        try:
-            sensor_type = detect_sensor_type(filename)
+        if num_files != 3:
+            logger.error('argument -m/--merge requires three file arguments')
+            return
 
-            if sensor_type == 'visiblair_d':
-                df, valid, invalid = read_data_visiblair_d(filename)
-            elif sensor_type == 'visiblair_e':
-                df, valid, invalid = read_data_visiblair_e(filename)
-            elif sensor_type == 'voc_co_form':
-                df, valid, invalid = read_data_voc_co_form(filename)
-            else:
-                logger.error("Unsupported file format")
-                return
+        file_format, df1, num_valid_rows1, num_invalid_rows = read_data(args.filenames[0])
+        file_format, df2, num_valid_rows2, num_invalid_rows = read_data(args.filenames[1])
 
-            if invalid > 0:
-                logger.info(f"{invalid} invalid row(s) ignored")
+        if num_valid_rows1 <= 0 or num_valid_rows2 <= 0:
+            logger.error('At least one of the input files is unsupported')
+            return
 
-            if not args.all_dates:
-                #log_data_frame(df, description = 'before deleting old data')
-                df = delete_old_data(df, args.start_date)
-                #log_data_frame(df, description = 'after deleting old data')
+        temp_df = df1[['co2']]
+        df2 = pd.concat([df2, temp_df]).sort_index()
+        df2.to_csv(args.filenames[2], index=True)
 
-            if sensor_type == 'visiblair_d':
-                generate_plot_co2_hum_tmp(df, filename)
-            if sensor_type == 'visiblair_e':
-                generate_plot_co2_hum_tmp(df, filename)
-            elif sensor_type == 'voc_co_form':
-                generate_plot_hum_tmp(df, filename)
-                generate_plot_voc_co_form(df, filename)
-        except Exception as e:
-            logger.exception(f"Unexpected error: {e}")
+    else:
+        # Create a list containing all files from all patterns like '*.csv',
+        # because under Windows the terminal doesn't expand wildcard arguments.
+        all_files = []
+        for pattern in args.filenames:
+            all_files.extend(glob.glob(pattern))
+
+        for filename in all_files:
+            logger.info(f'Processing {filename}')
+            try:
+                file_format, df, num_valid_rows, num_invalid_rows = read_data(filename)
+
+                if num_valid_rows > 0:
+                    logger.debug(f'{num_valid_rows} row(s) read')
+                else:
+                    logger.error('Unsupported file format')
+                    return
+
+                if num_invalid_rows > 0:
+                    logger.info(f'{num_invalid_rows} invalid row(s) ignored')
+
+                if not args.all_dates:
+                    df = delete_old_data(df, args.start_date)
+
+                if file_format == 'plotair':
+                    generate_plot_co2_hum_tmp(df, filename, args.title)
+                elif file_format == 'visiblair_d':
+                    generate_plot_co2_hum_tmp(df, filename, args.title)
+                elif file_format == 'visiblair_e':
+                    generate_plot_co2_hum_tmp(df, filename, args.title)
+                elif file_format == 'voc_co_form':
+                    generate_plot_hum_tmp(df, filename, args.title)
+                    generate_plot_voc_co_form(df, filename, args.title)
+            except Exception as e:
+                logger.exception(f'Unexpected error: {e}')
 
 
-def detect_sensor_type(filename):
-    sensor_type = None
+def detect_file_format(filename):
+    file_format = None
     visiblair_d_num_col = (5, 6) # Most rows have 5 columns but some have 6
     visiblair_e_num_col = (21, 21)
     voc_co_form_num_col = (7, 7)
@@ -118,22 +138,62 @@ def detect_sensor_type(filename):
         first_line = next(reader)
         num_fields = len(first_line)
         
-        if visiblair_d_num_col[0] <= num_fields <= visiblair_d_num_col[1]:
-            sensor_type = 'visiblair_d'
-        elif visiblair_e_num_col[0] <= num_fields <= visiblair_e_num_col[1]:
-            sensor_type = 'visiblair_e'
-        elif voc_co_form_num_col[0] <= num_fields <= voc_co_form_num_col[1]:
-            sensor_type = 'voc_co_form'
+        if first_line[0] == 'date':
+            file_format = 'plotair'
+        elif visiblair_d_num_col[0] <= num_fields <= visiblair_d_num_col[1]:
+            file_format = 'visiblair_d'
+        elif (visiblair_e_num_col[0] <= num_fields <= visiblair_e_num_col[1] and
+              first_line[1] == 'Timestamp'):
+            file_format = 'visiblair_e'
+        elif (voc_co_form_num_col[0] <= num_fields <= voc_co_form_num_col[1] and
+              first_line[0] == 'Date Time'):
+            file_format = 'voc_co_form'
         
-    logger.debug(f"Sensor type: {sensor_type}")
+    logger.debug(f'File format: {file_format}')
     
-    return sensor_type
+    return file_format
+
+
+def read_data(filename):
+    file_format = detect_file_format(filename)
+    df = pd.DataFrame()
+    num_valid_rows = 0
+    num_invalid_rows = 0
+
+    if file_format == 'plotair':
+        df, num_valid_rows, num_invalid_rows = read_data_plotair(filename)
+    elif file_format == 'visiblair_d':
+        df, num_valid_rows, num_invalid_rows = read_data_visiblair_d(filename)
+    elif file_format == 'visiblair_e':
+        df, num_valid_rows, num_invalid_rows = read_data_visiblair_e(filename)
+    elif file_format == 'voc_co_form':
+        df, num_valid_rows, num_invalid_rows = read_data_voc_co_form(filename)
+
+    return file_format, df, num_valid_rows, num_invalid_rows
+
+
+def read_data_plotair(filename):
+    num_valid_rows = 0
+    num_invalid_rows = 0
+
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(filename)
+
+    # Convert the 'date' column to pandas datetime objects
+    df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d %H:%M:%S')
+
+    df = df.set_index('date')
+    df = df.sort_index()  # Sort in case some dates are not in order
+    num_valid_rows = len(df)
+
+    return df, num_valid_rows, num_invalid_rows
 
 
 def read_data_visiblair_d(filename):
-    valid_rows = []
+    df = pd.DataFrame()
     num_valid_rows = 0
     num_invalid_rows = 0
+    valid_rows = []
 
     # Read the file line by line instead of using pandas read_csv function.
     # This is less concise but allows for more control over data validation.
@@ -145,7 +205,7 @@ def read_data_visiblair_d(filename):
             
             if not (vis_min <= len(fields) <= vis_max):
                 # Skip lines with an invalid number of columns
-                logger.debug(f"Skipping line (number of columns): {line}")
+                logger.debug(f'Skipping line (number of columns): {line}')
                 num_invalid_rows += 1
                 continue
                 
@@ -158,12 +218,11 @@ def read_data_visiblair_d(filename):
                     'humidity': np.uint8(fields[3])        # 0 to 100% RH
                 }
                 # If conversion succeeds, add the parsed row to the list
-                num_valid_rows += 1
                 valid_rows.append(parsed_row)
                 
             except (ValueError, TypeError) as e:
                 # Skip lines with conversion errors
-                logger.debug(f"Skipping line (conversion error): {line}")
+                logger.debug(f'Skipping line (conversion error): {line}')
                 num_invalid_rows += 1
                 continue
 
@@ -171,6 +230,7 @@ def read_data_visiblair_d(filename):
         df = pd.DataFrame(valid_rows)
         df = df.set_index('date')
         df = df.sort_index()  # Sort in case some dates are not in order
+        num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
 
@@ -193,6 +253,7 @@ def read_data_visiblair_e(filename):
 
     df = df.set_index('date')
     df = df.sort_index()  # Sort in case some dates are not in order
+    num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
 
@@ -215,6 +276,7 @@ def read_data_voc_co_form(filename):
 
     df = df.set_index('date')
     df = df.sort_index()  # Sort in case some dates are not in order
+    num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
 
@@ -250,7 +312,7 @@ def delete_old_data(df, start_date = None):
     return df
     
 
-def generate_plot_co2_hum_tmp(df, filename):
+def generate_plot_co2_hum_tmp(df, filename, title):
     # The dates must be in a non-index column
     df = df.reset_index()
 
@@ -290,7 +352,7 @@ def generate_plot_co2_hum_tmp(df, filename):
                 facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
 
     # Customize the plot title, labels and ticks
-    ax1.set_title(get_plot_title(filename))
+    ax1.set_title(get_plot_title(title, filename))
     ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
     ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
     ax1.set_xlabel('')
@@ -327,7 +389,7 @@ def generate_plot_co2_hum_tmp(df, filename):
     plt.close()
 
 
-def generate_plot_hum_tmp(df, filename):
+def generate_plot_hum_tmp(df, filename, title):
     # The dates must be in a non-index column
     df = df.reset_index()
 
@@ -367,7 +429,7 @@ def generate_plot_hum_tmp(df, filename):
                 facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
 
     # Customize the plot title, labels and ticks
-    ax1.set_title(get_plot_title(filename))
+    ax1.set_title(get_plot_title(title, filename))
     ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
     #ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
     ax1.set_xlabel('')
@@ -408,7 +470,7 @@ def generate_plot_hum_tmp(df, filename):
     plt.close()
 
 
-def generate_plot_voc_co_form(df, filename):
+def generate_plot_voc_co_form(df, filename, title):
     # The dates must be in a non-index column
     df = df.reset_index()
     df['co_scaled'] = df['co'] * 10
@@ -452,7 +514,7 @@ def generate_plot_voc_co_form(df, filename):
                 label=CONFIG['labels']['tvoc_limit'])
 
     # Customize the plot title, labels and ticks
-    ax1.set_title(get_plot_title(filename))
+    ax1.set_title(get_plot_title(title, filename))
     ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
     ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['tvoc'])
     ax1.set_xlabel('')
@@ -518,14 +580,17 @@ def load_config(reset_config = False):
     else:
         logger.debug(f'Found config file at {user_config_file}')
 
-    with open(user_config_file, "rb") as f:
+    with open(user_config_file, 'rb') as f:
         CONFIG = tomllib.load(f)
 
 
-def get_plot_title(filename):
-    stem = Path(filename).stem
-    match = re.search(r'^(\d+\s*-\s*)?(.*)$', stem)
-    plot_title = match.group(2) if match else stem
+def get_plot_title(title, filename):
+    if title:
+        plot_title = title
+    else:
+        stem = Path(filename).stem
+        match = re.search(r'^(\d+\s*-\s*)?(.*)$', stem)
+        plot_title = match.group(2) if match else stem
 
     # Capitalize only the first character
     if plot_title: plot_title = plot_title[0].upper() + plot_title[1:]
@@ -535,7 +600,7 @@ def get_plot_title(filename):
 
 def get_png_filename(filename, suffix = ''):
     p = Path(filename)
-    return f"{p.parent}/{p.stem}{suffix}.png"
+    return f'{p.parent}/{p.stem}{suffix}.png'
 
 
 def log_data_frame(df, description = ''):
@@ -544,7 +609,7 @@ def log_data_frame(df, description = ''):
     #logger.debug(f'DataFrame index data type: {df.index.dtype}')
     #logger.debug(f'DataFrame index class: {type(df.index)}')
     #logger.debug(f'DataFrame columns data types\n{df.dtypes}')
-    logger.debug(f'DataFrame statistics\n{df.describe()}')  # Mean, min, max...
+    #logger.debug(f'DataFrame statistics\n{df.describe()}')  # Mean, min, max...
     #sys.exit()
 
 
