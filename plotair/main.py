@@ -473,8 +473,7 @@ def generate_plot_hum_tmp(df, filename, title):
 def generate_plot_voc_co_form(df, filename, title):
     # The dates must be in a non-index column
     df = df.reset_index()
-    df['co_scaled'] = df['co'] * 10
-
+    
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
@@ -485,16 +484,35 @@ def generate_plot_voc_co_form(df, filename, title):
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
-    # Plot the data series
-    # Filter the DataFrame to only include rows where 'form' is not zero
-    df_filtered = df[df['form'] != 0]
+    # Plot the TVOC main line
+    sns.lineplot(data=df, x='date', y='tvoc', ax=ax1, legend=False,
+                 color=CONFIG['colors']['tvoc'], label=CONFIG['labels']['tvoc'])
 
-    sns.lineplot(data=df, x='date', y='tvoc', ax=ax1, color=CONFIG['colors']['tvoc'],
-                 label=CONFIG['labels']['tvoc'], legend=False)
-    sns.lineplot(data=df, x='date', y='co_scaled', ax=ax2, color=CONFIG['colors']['co'],
-                 label=CONFIG['labels']['co'], legend=False)
-    sns.lineplot(data=df_filtered, x='date', y='form', ax=ax2, color=CONFIG['colors']['form'],
-                 label=CONFIG['labels']['form'], legend=False)
+    # Plot the TVOC limit line
+    ax1.axhline(y=CONFIG['tvoc_limit']['value'], color=CONFIG['colors']['tvoc'],
+                linestyle='--', linewidth=CONFIG['tvoc_limit']['line_width'],
+                label=CONFIG['labels']['tvoc_limit'])
+
+    # Plot the formaldehyde main line
+    df_filtered = df[df['form'] != 0]  # Filter out rows where 'form' is zero
+    sns.lineplot(data=df_filtered, x='date', y='form', ax=ax2, legend=False,
+                 color=CONFIG['colors']['form'], label=CONFIG['labels']['form'])
+
+    # Plot the formaldehyde limit line
+    ax2.axhline(y=CONFIG['form_limit']['value'], color=CONFIG['colors']['form'],
+                linestyle='--', linewidth=CONFIG['form_limit']['line_width'],
+                label=CONFIG['labels']['form_limit'])
+
+    # Plot the CO main line
+    co_scale = 10
+    df['co_scaled'] = df['co'] * co_scale
+    sns.lineplot(data=df, x='date', y='co_scaled', ax=ax2, legend=False,
+                 color=CONFIG['colors']['co'], label=CONFIG['labels']['co'])
+
+    # Plot the CO limit line
+    ax2.axhline(y=CONFIG['co_limit']['value'] * co_scale, color=CONFIG['colors']['co'],
+                linestyle='--', linewidth=CONFIG['co_limit']['line_width'],
+                label=CONFIG['labels']['co_limit'])
 
     # Set the ranges for both y axes
     tmin, tmax = CONFIG['axis_ranges']['tvoc']
@@ -507,11 +525,6 @@ def generate_plot_voc_co_form(df, filename, title):
     #ax1.grid(axis='x', alpha=0.7)  
     #ax1.grid(axis='y', alpha=0.7)
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
-
-    # Add an horizontal line for the TVOC limit
-    ax1.axhline(y=CONFIG['tvoc_limit']['value'], color=CONFIG['colors']['tvoc'],
-                linestyle='--', linewidth=CONFIG['tvoc_limit']['line_width'],
-                label=CONFIG['labels']['tvoc_limit'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))

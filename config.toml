@@ -14,7 +14,9 @@ humidity = 'Humidité (%)'
 tvoc = 'COVT (ppb)'
 tvoc_limit = 'Limite LEED, WELL et LBC'
 co = 'Monoxyde de carbone (ppm x 10)'
+co_limit = 'Limite anomalie légère BBI'
 form = 'Formaldéhyde (ppb)'
+form_limit = 'Limite anomalie légère BBI'
 
 # Options: 'best', 'upper right', 'upper left', 'lower left', 'lower right',
 # 'center left', 'center right', 'lower center', 'upper center', 'center'
@@ -31,7 +33,15 @@ range = [40, 60]
 opacity = 0.075  # 0 is fully transparent and 1 is fully opaque
 
 [tvoc_limit]
-value = 218
+value = 218  # ppb
+line_width = 2
+
+[co_limit]
+value = 0.4  # ppm
+line_width = 2
+
+[form_limit]
+value = 16  # ppb
 line_width = 2
 
 [colors]
