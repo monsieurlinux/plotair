@@ -224,7 +224,6 @@ def delete_old_data(df, start_date = None):
         # Keep only the data range to be plotted (use pandas dates types)
         sd = pd.Timestamp(start_date)
         df = df[df.index >= sd]
-        logger.debug(f'delete_old_data: start date is {sd}')
 
     else:
         # Iterate backwards through the samples to find the first time gap larger
@@ -258,9 +257,8 @@ def generate_plot_co2_hum_tmp(df, filename):
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
-    # Set the font to override the OS-dependent default. Noto is installed by
-    # default on both Linux and Windows, but not on macOS.
-    plt.rcParams['font.family'] = 'Noto Sans'
+    ff = CONFIG['plot']['font_family']
+    if ff != '': plt.rcParams['font.family'] = ff
 
     # Set up the matplotlib figure and axes
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
@@ -336,9 +334,8 @@ def generate_plot_hum_tmp(df, filename):
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
-    # Set the font to override the OS-dependent default. Noto is installed by
-    # default on both Linux and Windows, but not on macOS.
-    plt.rcParams['font.family'] = 'Noto Sans'
+    ff = CONFIG['plot']['font_family']
+    if ff != '': plt.rcParams['font.family'] = ff
 
     # Set up the matplotlib figure and axes
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
@@ -419,9 +416,8 @@ def generate_plot_voc_co_form(df, filename):
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
-    # Set the font to override the OS-dependent default. Noto is installed by
-    # default on both Linux and Windows, but not on macOS.
-    plt.rcParams['font.family'] = 'Noto Sans'
+    ff = CONFIG['plot']['font_family']
+    if ff != '': plt.rcParams['font.family'] = ff
 
     # Set up the matplotlib figure and axes
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])

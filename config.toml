@@ -2,6 +2,7 @@
 max_missing_samples = 4
 
 [plot]
+font_family = 'Noto Sans'  # Set to '' to use default system font
 font_scale = 1.4
 size = [11.0, 8.5]
 
