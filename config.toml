@@ -14,9 +14,9 @@ date_rotation = 30
 co2 = 'CO₂ (ppm)'
 temp = 'Température (°C)'
 humidity = 'Humidité (%)'
-tvoc = 'TVOC (ppb)'
-co = 'Carbon Monoxide (ppm x 10)'
-form = 'Formaldehyde (ppb)'
+tvoc = 'COVT (ppb)'
+co = 'Monoxyde de carbone (ppm x 10)'
+form = 'Formaldéhyde (ppb)'
 
 [axis_ranges]
 co2 = [0, 1200]
