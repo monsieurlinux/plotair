@@ -270,16 +270,20 @@ def generate_plot_co2_hum_tmp(df, filename):
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
+    bottom_label = CONFIG['labels']['temp'] + '  '
+    top_label = '  ' + CONFIG['labels']['humidity']
     x = 1.07  # Slightly to the right of the axis
-    y = 0.5   # Vertically centered
+    y = get_label_center(bottom_label, top_label)   # Vertically centered
 
     # Place the first (bottom) part of the label
-    ax2.text(x, y, CONFIG['labels']['temp'] + '  ', transform=ax2.transAxes,
-             color=CONFIG['colors']['temp'], rotation='vertical', ha='center', va='top')
+    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
+             color=CONFIG['colors']['temp'], rotation='vertical',
+             ha='center', va='top')
 
     # Place the second (top) part of the label
-    ax2.text(x, y, '  ' + CONFIG['labels']['humidity'], transform=ax2.transAxes,
-            color=CONFIG['colors']['humidity'], rotation='vertical', ha='center', va='bottom')
+    ax2.text(x, y, top_label, transform=ax2.transAxes,
+            color=CONFIG['colors']['humidity'], rotation='vertical',
+            ha='center', va='bottom')
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -343,16 +347,20 @@ def generate_plot_hum_tmp(df, filename):
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
+    bottom_label = CONFIG['labels']['temp'] + '  '
+    top_label = '  ' + CONFIG['labels']['humidity']
     x = 1.07  # Slightly to the right of the axis
-    y = 0.5   # Vertically centered
+    y = get_label_center(bottom_label, top_label)   # Vertically centered
 
     # Place the first (bottom) part of the label
-    ax2.text(x, y, CONFIG['labels']['temp'] + '  ', transform=ax2.transAxes,
-             color=CONFIG['colors']['temp'], rotation='vertical', ha='center', va='top')
+    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
+             color=CONFIG['colors']['temp'], rotation='vertical',
+             ha='center', va='top')
 
     # Place the second (top) part of the label
-    ax2.text(x, y, '  ' + CONFIG['labels']['humidity'], transform=ax2.transAxes,
-            color=CONFIG['colors']['humidity'], rotation='vertical', ha='center', va='bottom')
+    ax2.text(x, y, top_label, transform=ax2.transAxes,
+            color=CONFIG['colors']['humidity'], rotation='vertical',
+            ha='center', va='bottom')
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -424,16 +432,20 @@ def generate_plot_voc_co_form(df, filename):
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
+    bottom_label = CONFIG['labels']['co'] + '  '
+    top_label = '  ' + CONFIG['labels']['form']
     x = 1.07  # Slightly to the right of the axis
-    y = 0.5   # Vertically centered
+    y = get_label_center(bottom_label, top_label)   # Vertically centered
 
     # Place the first (bottom) part of the label
-    ax2.text(x, y, CONFIG['labels']['co'] + '  ', transform=ax2.transAxes,
-             color=CONFIG['colors']['co'], rotation='vertical', ha='center', va='top')
+    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
+             color=CONFIG['colors']['co'], rotation='vertical',
+             ha='center', va='top')
 
     # Place the second (top) part of the label
-    ax2.text(x, y, '  ' + CONFIG['labels']['form'], transform=ax2.transAxes,
-            color=CONFIG['colors']['form'], rotation='vertical', ha='center', va='bottom')
+    ax2.text(x, y, top_label, transform=ax2.transAxes,
+             color=CONFIG['colors']['form'], rotation='vertical',
+             ha='center', va='bottom')
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -446,6 +458,14 @@ def generate_plot_voc_co_form(df, filename):
     # Save the plot as a PNG image
     plt.savefig(get_png_filename(filename, '-vcf'))
     plt.close()
+
+
+def get_label_center(bottom_label, top_label):
+    # Return a value between 0 and 1 to estimate where to center the label
+    fs = CONFIG['plot']['font_scale']
+    divider = 72 * fs**2 - 316 * fs + 414  # Tested for fs between 0.8 and 2
+    center = 0.5 + ((len(bottom_label) - len(top_label)) / divider)
+    return center
 
 
 def load_config():
