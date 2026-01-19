@@ -5,6 +5,10 @@ max_missing_samples = 4
 font_family = 'Noto Sans'  # Set to '' to use default system font
 font_scale = 1.4
 size = [11.0, 8.5]
+grid_opacity = 0.7  # 0 is fully transparent and 1 is fully opaque
+limit_zone_opacity = 0.075
+limit_line_opacity = 0.7
+limit_line_width = 1
 
 [labels]
 date_rotation = 30
@@ -28,21 +32,11 @@ temp_h = [10, 70]
 tvoc = [0, 400]
 co_form = [0, 40]
 
-[humidity_zone]
-range = [40, 60]
-opacity = 0.075  # 0 is fully transparent and 1 is fully opaque
-
-[tvoc_limit]
-value = 218  # ppb
-line_width = 2
-
-[co_limit]
-value = 0.4  # ppm
-line_width = 2
-
-[form_limit]
-value = 16  # ppb
-line_width = 2
+[limits]
+humidity = [40, 60]
+tvoc = 218  # ppb
+co = 0.4    # ppm
+form = 16   # ppb
 
 [colors]
 # See Matplotlib documentation for valid colors:

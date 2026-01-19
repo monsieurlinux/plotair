@@ -347,9 +347,9 @@ def generate_plot_co2_hum_tmp(df, filename, title):
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
-    hmin, hmax = CONFIG['humidity_zone']['range']
+    hmin, hmax = CONFIG['limits']['humidity']
     ax2.axhspan(ymin=hmin, ymax=hmax,
-                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
+                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
@@ -424,9 +424,9 @@ def generate_plot_hum_tmp(df, filename, title):
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
-    hmin, hmax = CONFIG['humidity_zone']['range']
+    hmin, hmax = CONFIG['limits']['humidity']
     ax2.axhspan(ymin=hmin, ymax=hmax,
-                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
+                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
@@ -489,9 +489,10 @@ def generate_plot_voc_co_form(df, filename, title):
                  color=CONFIG['colors']['tvoc'], label=CONFIG['labels']['tvoc'])
 
     # Plot the TVOC limit line
-    ax1.axhline(y=CONFIG['tvoc_limit']['value'], color=CONFIG['colors']['tvoc'],
-                linestyle='--', linewidth=CONFIG['tvoc_limit']['line_width'],
+    line = ax1.axhline(y=CONFIG['limits']['tvoc'], color=CONFIG['colors']['tvoc'],
+                linestyle='--', linewidth=CONFIG['plot']['limit_line_width'],
                 label=CONFIG['labels']['tvoc_limit'])
+    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
     # Plot the formaldehyde main line
     df_filtered = df[df['form'] != 0]  # Filter out rows where 'form' is zero
@@ -499,9 +500,10 @@ def generate_plot_voc_co_form(df, filename, title):
                  color=CONFIG['colors']['form'], label=CONFIG['labels']['form'])
 
     # Plot the formaldehyde limit line
-    ax2.axhline(y=CONFIG['form_limit']['value'], color=CONFIG['colors']['form'],
-                linestyle='--', linewidth=CONFIG['form_limit']['line_width'],
+    line = ax2.axhline(y=CONFIG['limits']['form'], color=CONFIG['colors']['form'],
+                linestyle='--', linewidth=CONFIG['plot']['limit_line_width'],
                 label=CONFIG['labels']['form_limit'])
+    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
     # Plot the CO main line
     co_scale = 10
@@ -510,9 +512,10 @@ def generate_plot_voc_co_form(df, filename, title):
                  color=CONFIG['colors']['co'], label=CONFIG['labels']['co'])
 
     # Plot the CO limit line
-    ax2.axhline(y=CONFIG['co_limit']['value'] * co_scale, color=CONFIG['colors']['co'],
-                linestyle='--', linewidth=CONFIG['co_limit']['line_width'],
+    line = ax2.axhline(y=CONFIG['limits']['co'] * co_scale, color=CONFIG['colors']['co'],
+                linestyle='--', linewidth=CONFIG['plot']['limit_line_width'],
                 label=CONFIG['labels']['co_limit'])
+    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
     # Set the ranges for both y axes
     tmin, tmax = CONFIG['axis_ranges']['tvoc']
@@ -522,9 +525,9 @@ def generate_plot_voc_co_form(df, filename, title):
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
-    #ax1.grid(axis='x', alpha=0.7)  
-    #ax1.grid(axis='y', alpha=0.7)
-    ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
+    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
+    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
