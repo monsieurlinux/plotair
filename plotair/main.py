@@ -410,10 +410,10 @@ def generate_plot_voc_co_form(df, filename):
     #ax1.grid(axis='y', alpha=0.7)
     ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
 
-    # Set the background color of the humidity comfort zone
-    #hmin, hmax = CONFIG['humidity_zone']['range']
-    #ax2.axhspan(ymin=hmin, ymax=hmax,
-    #            facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['humidity_zone']['opacity'])
+    # Add an horizontal line for the TVOC limit
+    ax1.axhline(y=CONFIG['tvoc_limit']['value'], color=CONFIG['colors']['tvoc'],
+                linestyle='--', linewidth=CONFIG['tvoc_limit']['line_width'],
+                label=CONFIG['labels']['tvoc_limit'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(filename))

@@ -15,6 +15,7 @@ co2 = 'CO₂ (ppm)'
 temp = 'Température (°C)'
 humidity = 'Humidité (%)'
 tvoc = 'COVT (ppb)'
+tvoc_limit = 'Limite LEED, WELL et LBC'
 co = 'Monoxyde de carbone (ppm x 10)'
 form = 'Formaldéhyde (ppb)'
 
@@ -27,6 +28,10 @@ co_form = [0, 40]
 [humidity_zone]
 range = [40, 60]
 opacity = 0.075  # 0 is fully transparent and 1 is fully opaque
+
+[tvoc_limit]
+value = 218
+line_width = 2
 
 [colors]
 # See Matplotlib documentation for valid colors:
