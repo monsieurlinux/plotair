@@ -114,6 +114,8 @@ def main():
                 if not args.all_dates:
                     df = delete_old_data(df, args.start_date)
 
+                generate_stats(df, filename)
+
                 if file_format == 'plotair':
                     generate_plot_co2_hum_tmp(df, filename, args.title)
                 elif file_format == 'visiblair_d':
@@ -353,7 +355,7 @@ def generate_plot_co2_hum_tmp(df, filename, title):
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
-    ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
+    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
     ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
     ax1.set_xlabel('')
     ax1.set_ylabel(CONFIG['labels']['co2'], color=CONFIG['colors']['co2'])
@@ -379,13 +381,13 @@ def generate_plot_co2_hum_tmp(df, filename, title):
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2,
-               loc=CONFIG['labels']['legend_location'])
+               loc=CONFIG['plot']['legend_location'])
 
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
 
     # Save the plot as a PNG image
-    plt.savefig(get_png_filename(filename, '-cht'))
+    plt.savefig(get_plot_filename(filename, '-cht'))
     plt.close()
 
 
@@ -430,7 +432,7 @@ def generate_plot_hum_tmp(df, filename, title):
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
-    ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
+    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
     #ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
     ax1.set_xlabel('')
     #ax1.set_ylabel(CONFIG['labels']['co2'], color=CONFIG['colors']['co2'])
@@ -456,7 +458,7 @@ def generate_plot_hum_tmp(df, filename, title):
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2,
-               loc=CONFIG['labels']['legend_location'])
+               loc=CONFIG['plot']['legend_location'])
 
     # Remove the left y-axis elements from ax1
     ax1.spines['left'].set_visible(False)
@@ -466,7 +468,7 @@ def generate_plot_hum_tmp(df, filename, title):
     plt.tight_layout()
 
     # Save the plot as a PNG image
-    plt.savefig(get_png_filename(filename, '-ht'))
+    plt.savefig(get_plot_filename(filename, '-ht'))
     plt.close()
 
 
@@ -531,7 +533,7 @@ def generate_plot_voc_co_form(df, filename, title):
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
-    ax1.tick_params(axis='x', rotation=CONFIG['labels']['date_rotation'])
+    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
     ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['tvoc'])
     ax1.set_xlabel('')
     ax1.set_ylabel(CONFIG['labels']['tvoc'], color=CONFIG['colors']['tvoc'])
@@ -557,13 +559,13 @@ def generate_plot_voc_co_form(df, filename, title):
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2,
-               loc=CONFIG['labels']['legend_location'])
+               loc=CONFIG['plot']['legend_location'])
 
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
 
     # Save the plot as a PNG image
-    plt.savefig(get_png_filename(filename, '-vcf'))
+    plt.savefig(get_plot_filename(filename, '-vcf'))
     plt.close()
 
 
@@ -573,6 +575,18 @@ def get_label_center(bottom_label, top_label):
     divider = 72 * fs**2 - 316 * fs + 414  # Tested for fs between 0.8 and 2
     center = 0.5 + ((len(bottom_label) - len(top_label)) / divider)
     return center
+
+
+def generate_stats(df, filename):
+    summary = df.describe()
+
+    with open(get_stats_filename(filename), 'w') as file:
+        file.write(summary.to_string())
+
+    for column in summary.columns.tolist():
+        box = sns.boxplot(data=df, y=column)
+        plt.savefig(get_boxplot_filename(filename, f'-{column}'))
+        plt.close()
 
 
 def load_config(reset_config = False):
@@ -614,9 +628,19 @@ def get_plot_title(title, filename):
     return plot_title
 
 
-def get_png_filename(filename, suffix = ''):
+def get_plot_filename(filename, suffix = ''):
     p = Path(filename)
     return f'{p.parent}/{p.stem}{suffix}.png'
+
+
+def get_boxplot_filename(filename, suffix = ''):
+    p = Path(filename)
+    return f'{p.parent}/{p.stem}-boxplot{suffix}.png'
+
+
+def get_stats_filename(filename):
+    p = Path(filename)
+    return f'{p.parent}/{p.stem}-stats.txt'
 
 
 def log_data_frame(df, description = ''):

@@ -2,16 +2,20 @@
 max_missing_samples = 4
 
 [plot]
+size = [11.0, 8.5]
 font_family = 'Noto Sans'  # Set to '' to use default system font
 font_scale = 1.4
-size = [11.0, 8.5]
 grid_opacity = 0.7  # 0 is fully transparent and 1 is fully opaque
 limit_zone_opacity = 0.075
 limit_line_opacity = 0.7
 limit_line_width = 1
+date_rotation = 30
+
+# Options: 'best', 'upper right', 'upper left', 'lower left', 'lower right',
+# 'center left', 'center right', 'lower center', 'upper center', 'center'
+legend_location = 'best'
 
 [labels]
-date_rotation = 30
 co2 = 'CO₂ (ppm)'
 temp = 'Température (°C)'
 humidity = 'Humidité (%)'
@@ -22,15 +26,11 @@ co_limit = 'Limite anomalie légère BBI'
 form = 'Formaldéhyde (ppb)'
 form_limit = 'Limite anomalie légère BBI'
 
-# Options: 'best', 'upper right', 'upper left', 'lower left', 'lower right',
-# 'center left', 'center right', 'lower center', 'upper center', 'center'
-legend_location = 'best'
-
 [axis_ranges]
-co2 = [0, 1200]
-temp_h = [10, 70]
-tvoc = [0, 400]
-co_form = [0, 40]
+co2 = [0, 2000]
+temp_h = [0, 80]
+tvoc = [0, 500]
+co_form = [0, 50]
 
 [limits]
 humidity = [40, 60]
