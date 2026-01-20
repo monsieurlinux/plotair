@@ -353,7 +353,7 @@ def generate_plot_co2_hum_tmp(df, filename, title):
     # This is already done if using the whitegrid theme
     #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
     #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
 
     # Set the background color of the humidity comfort zone
     hmin, hmax = CONFIG['limits']['humidity']
@@ -430,7 +430,7 @@ def generate_plot_hum_tmp(df, filename, title):
     # This is already done if using the whitegrid theme
     #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
     #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
 
     # Set the background color of the humidity comfort zone
     hmin, hmax = CONFIG['limits']['humidity']
@@ -468,6 +468,7 @@ def generate_plot_hum_tmp(df, filename, title):
                loc=CONFIG['plot']['legend_location'])
 
     # Remove the left y-axis elements from ax1
+    ax1.grid(axis='y', visible=False)
     ax1.spines['left'].set_visible(False)
     ax1.tick_params(axis='y', left=False, labelleft=False)
 
@@ -499,7 +500,7 @@ def generate_plot_voc_co_form(df, filename, title):
 
     # Plot the TVOC limit line
     line = ax1.axhline(y=CONFIG['limits']['tvoc'], color=CONFIG['colors']['tvoc'],
-                linestyle='--', linewidth=CONFIG['plot']['limit_line_width'],
+                linestyle=CONFIG['plot']['limit_line_style'], linewidth=CONFIG['plot']['limit_line_width'],
                 label=CONFIG['labels']['tvoc_limit'])
     line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
@@ -510,7 +511,7 @@ def generate_plot_voc_co_form(df, filename, title):
 
     # Plot the formaldehyde limit line
     line = ax2.axhline(y=CONFIG['limits']['form'], color=CONFIG['colors']['form'],
-                linestyle='--', linewidth=CONFIG['plot']['limit_line_width'],
+                linestyle=CONFIG['plot']['limit_line_style'], linewidth=CONFIG['plot']['limit_line_width'],
                 label=CONFIG['labels']['form_limit'])
     line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
@@ -522,7 +523,7 @@ def generate_plot_voc_co_form(df, filename, title):
 
     # Plot the CO limit line
     line = ax2.axhline(y=CONFIG['limits']['co'] * co_scale, color=CONFIG['colors']['co'],
-                linestyle='--', linewidth=CONFIG['plot']['limit_line_width'],
+                linestyle=CONFIG['plot']['limit_line_style'], linewidth=CONFIG['plot']['limit_line_width'],
                 label=CONFIG['labels']['co_limit'])
     line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
@@ -536,7 +537,7 @@ def generate_plot_voc_co_form(df, filename, title):
     # This is already done if using the whitegrid theme
     #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
     #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
@@ -590,32 +591,57 @@ def generate_plot_pm(df, filename, title):
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
-    # Plot the data series
-    sns.lineplot(data=df, x='date', y='pm0.1', ax=ax1, color=CONFIG['colors']['pm0.1'],
-                 label=CONFIG['labels']['pm0.1'], legend=False)
-    sns.lineplot(data=df, x='date', y='pm2.5', ax=ax2, color=CONFIG['colors']['pm2.5'],
-                 label=CONFIG['labels']['pm2.5'], legend=False)
-    sns.lineplot(data=df, x='date', y='pm10', ax=ax2, color=CONFIG['colors']['pm10'],
-                 label=CONFIG['labels']['pm10'], legend=False)
+    #sns.lineplot(data=df, x='date', y='pm0.1', ax=ax1, color=CONFIG['colors']['pm0.1'],
+    #             label=CONFIG['labels']['pm0.1'], legend=False)
+
+    # Plot the PM2.5 main line
+    sns.lineplot(data=df, x='date', y='pm2.5', ax=ax2, legend=False,
+                 color=CONFIG['colors']['pm2.5'],
+                 label=CONFIG['labels']['pm2.5'],
+                 linewidth=CONFIG['plot']['pm2.5_line_width'],
+                 linestyle=CONFIG['plot']['pm2.5_line_style'])
+
+    # Plot the PM2.5 limit line
+    line = ax2.axhline(y=CONFIG['limits']['pm2.5'],
+                 color=CONFIG['colors']['pm2.5'],
+                 label=CONFIG['labels']['pm2.5_limit'],
+                 linewidth=CONFIG['plot']['limit_line_width'],
+                 linestyle=CONFIG['plot']['limit_line_style'])
+    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
+
+    # Plot the PM10 main line
+    sns.lineplot(data=df, x='date', y='pm10', ax=ax2, legend=False,
+                 color=CONFIG['colors']['pm10'],
+                 label=CONFIG['labels']['pm10'],
+                 linewidth=CONFIG['plot']['pm10_line_width'],
+                 linestyle=CONFIG['plot']['pm10_line_style'])
+
+    # Plot the PM10 limit line
+    line = ax2.axhline(y=CONFIG['limits']['pm10'],
+                 color=CONFIG['colors']['pm10'],
+                 label=CONFIG['labels']['pm10_limit'],
+                 linewidth=CONFIG['plot']['limit_line_width'],
+                 linestyle=CONFIG['plot']['limit_line_style'])
+    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
     # Set the ranges for both y axes
-    min1, max1 = CONFIG['axis_ranges']['pm0.1']
+    #min1, max1 = CONFIG['axis_ranges']['pm0.1']
     min2, max2 = CONFIG['axis_ranges']['pm2.5_10']
-    ax1.set_ylim(min1, max1)  # df['co2'].max() * 1.05
+    #ax1.set_ylim(min1, max1)  # df['co2'].max() * 1.05
     ax2.set_ylim(min2, max2)
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
     #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
     #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid1_line_style'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
     ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
-    ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['pm0.1'])
+    #ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['pm0.1'])
     ax1.set_xlabel('')
-    ax1.set_ylabel(CONFIG['labels']['pm0.1'], color=CONFIG['colors']['pm0.1'])
+    #ax1.set_ylabel(CONFIG['labels']['pm0.1'], color=CONFIG['colors']['pm0.1'])
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
@@ -639,6 +665,11 @@ def generate_plot_pm(df, filename, title):
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2,
                loc=CONFIG['plot']['legend_location'])
+
+    # Remove the left y-axis elements from ax1
+    ax1.grid(axis='y', visible=False)
+    ax1.spines['left'].set_visible(False)
+    ax1.tick_params(axis='y', left=False, labelleft=False)
 
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
