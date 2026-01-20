@@ -25,12 +25,17 @@ co = 'Monoxyde de carbone (ppm x 10)'
 co_limit = 'Limite anomalie légère BBI'
 form = 'Formaldéhyde (ppb)'
 form_limit = 'Limite anomalie légère BBI'
+"pm0.1" = 'PM0.1 (µg/m³)'
+"pm2.5" = 'PM2.5 (µg/m³)'
+"pm10" = 'PM10 (µg/m³)'
 
 [axis_ranges]
 co2 = [0, 2000]
 temp_h = [0, 80]
 tvoc = [0, 500]
 co_form = [0, 50]
+"pm0.1" = [0, 0.3]
+"pm2.5_10" = [0, 12]
 
 [limits]
 humidity = [40, 60]
@@ -47,3 +52,7 @@ co = 'tab:cyan'
 form = 'tab:red'
 humidity = 'tab:green'
 temp = 'tab:orange'
+"pm0.1" = 'tab:red'
+"pm2.5" = 'tab:purple'
+"pm10" = 'tab:blue'
+

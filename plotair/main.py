@@ -58,6 +58,8 @@ def main():
                         help='reset configuration file to default')
     parser.add_argument('-s', '--start-date', metavar='DATE',
                         help='date at which to start the plot (YYYY-MM-DD)')
+    parser.add_argument('-S', '--stop-date', metavar='DATE',
+                        help='date at which to stop the plot (YYYY-MM-DD)')
     parser.add_argument('-t', '--title',
                         help='set the plot title')
     parser.add_argument('-v', '--version', action='version', 
@@ -112,7 +114,7 @@ def main():
                     logger.info(f'{num_invalid_rows} invalid row(s) ignored')
 
                 if not args.all_dates:
-                    df = delete_old_data(df, args.start_date)
+                    df = delete_old_data(df, args.start_date, args.stop_date)
 
                 generate_stats(df, filename)
 
@@ -122,6 +124,7 @@ def main():
                     generate_plot_co2_hum_tmp(df, filename, args.title)
                 elif file_format == 'visiblair_e':
                     generate_plot_co2_hum_tmp(df, filename, args.title)
+                    generate_plot_pm(df, filename, args.title)
                 elif file_format == 'graywolf_ds':
                     generate_plot_hum_tmp(df, filename, args.title)
                     generate_plot_voc_co_form(df, filename, args.title)
@@ -283,13 +286,8 @@ def read_data_graywolf_ds(filename):
     return df, num_valid_rows, num_invalid_rows
 
 
-def delete_old_data(df, start_date = None):
-    if start_date:
-        # Keep only the data range to be plotted (use pandas dates types)
-        sd = pd.Timestamp(start_date)
-        df = df[df.index >= sd]
-
-    else:
+def delete_old_data(df, start_date = None, stop_date = None):
+    if not start_date and not stop_date:
         # Iterate backwards through the samples to find the first time gap larger
         # than the sampling interval. Then return only the latest data sequence.
         sampling_interval = None
@@ -310,7 +308,16 @@ def delete_old_data(df, start_date = None):
                         break
 
             next_date = current_date
-        
+
+    else:
+        # Keep only the data range to be plotted (use pandas dates types)
+        if start_date:
+            sd = pd.Timestamp(start_date)
+            df = df[df.index >= sd]
+        if stop_date:
+            sd = pd.Timestamp(stop_date)
+            df = df[df.index <= sd]
+
     return df
     
 
@@ -344,9 +351,9 @@ def generate_plot_co2_hum_tmp(df, filename, title):
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
-    #ax1.grid(axis='x', alpha=0.7)  
-    #ax1.grid(axis='y', alpha=0.7)
-    ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
+    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
+    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
     hmin, hmax = CONFIG['limits']['humidity']
@@ -421,9 +428,9 @@ def generate_plot_hum_tmp(df, filename, title):
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
-    #ax1.grid(axis='x', alpha=0.7)  
-    #ax1.grid(axis='y', alpha=0.7)
-    ax2.grid(axis='y', alpha=0.7, linestyle='dashed')
+    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
+    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
 
     # Set the background color of the humidity comfort zone
     hmin, hmax = CONFIG['limits']['humidity']
@@ -569,6 +576,78 @@ def generate_plot_voc_co_form(df, filename, title):
     plt.close()
 
 
+def generate_plot_pm(df, filename, title):
+    # The dates must be in a non-index column
+    df = df.reset_index()
+
+    # Set a theme and scale all fonts
+    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
+
+    ff = CONFIG['plot']['font_family']
+    if ff != '': plt.rcParams['font.family'] = ff
+
+    # Set up the matplotlib figure and axes
+    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
+    ax2 = ax1.twinx()  # Secondary y axis
+
+    # Plot the data series
+    sns.lineplot(data=df, x='date', y='pm0.1', ax=ax1, color=CONFIG['colors']['pm0.1'],
+                 label=CONFIG['labels']['pm0.1'], legend=False)
+    sns.lineplot(data=df, x='date', y='pm2.5', ax=ax2, color=CONFIG['colors']['pm2.5'],
+                 label=CONFIG['labels']['pm2.5'], legend=False)
+    sns.lineplot(data=df, x='date', y='pm10', ax=ax2, color=CONFIG['colors']['pm10'],
+                 label=CONFIG['labels']['pm10'], legend=False)
+
+    # Set the ranges for both y axes
+    min1, max1 = CONFIG['axis_ranges']['pm0.1']
+    min2, max2 = CONFIG['axis_ranges']['pm2.5_10']
+    ax1.set_ylim(min1, max1)  # df['co2'].max() * 1.05
+    ax2.set_ylim(min2, max2)
+
+    # Add a grid for the x axis and the y axes
+    # This is already done if using the whitegrid theme
+    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
+    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'], linestyle='dashed')
+
+    # Customize the plot title, labels and ticks
+    ax1.set_title(get_plot_title(title, filename))
+    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
+    ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['pm0.1'])
+    ax1.set_xlabel('')
+    ax1.set_ylabel(CONFIG['labels']['pm0.1'], color=CONFIG['colors']['pm0.1'])
+    ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
+
+    # Define the position for the center of the right y axis label
+    bottom_label = CONFIG['labels']['pm2.5'] + '  '
+    top_label = '  ' + CONFIG['labels']['pm10']
+    x = 1.07  # Slightly to the right of the axis
+    y = get_label_center(bottom_label, top_label)   # Vertically centered
+
+    # Place the first (bottom) part of the label
+    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
+             color=CONFIG['colors']['pm2.5'], rotation='vertical',
+             ha='center', va='top')
+
+    # Place the second (top) part of the label
+    ax2.text(x, y, top_label, transform=ax2.transAxes,
+            color=CONFIG['colors']['pm10'], rotation='vertical',
+            ha='center', va='bottom')
+
+    # Create a combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+               loc=CONFIG['plot']['legend_location'])
+
+    # Adjust the plot margins to make room for the labels
+    plt.tight_layout()
+
+    # Save the plot as a PNG image
+    plt.savefig(get_plot_filename(filename, '-pm'))
+    plt.close()
+
+
 def get_label_center(bottom_label, top_label):
     # Return a value between 0 and 1 to estimate where to center the label
     fs = CONFIG['plot']['font_scale']
@@ -583,10 +662,10 @@ def generate_stats(df, filename):
     with open(get_stats_filename(filename), 'w') as file:
         file.write(summary.to_string())
 
-    for column in summary.columns.tolist():
-        box = sns.boxplot(data=df, y=column)
-        plt.savefig(get_boxplot_filename(filename, f'-{column}'))
-        plt.close()
+    #for column in summary.columns.tolist():
+    #    box = sns.boxplot(data=df, y=column)
+    #    plt.savefig(get_boxplot_filename(filename, f'-{column}'))
+    #    plt.close()
 
 
 def load_config(reset_config = False):
@@ -633,9 +712,9 @@ def get_plot_filename(filename, suffix = ''):
     return f'{p.parent}/{p.stem}{suffix}.png'
 
 
-def get_boxplot_filename(filename, suffix = ''):
-    p = Path(filename)
-    return f'{p.parent}/{p.stem}-boxplot{suffix}.png'
+#def get_boxplot_filename(filename, suffix = ''):
+#    p = Path(filename)
+#    return f'{p.parent}/{p.stem}-boxplot{suffix}.png'
 
 
 def get_stats_filename(filename):
