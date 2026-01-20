@@ -40,7 +40,7 @@ co_form = [0, 50]
 [limits]
 humidity = [40, 60]
 tvoc = 218  # ppb
-co = 0.4    # ppm
+co = 4      # ppm
 form = 16   # ppb
 
 [colors]
