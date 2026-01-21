@@ -12,10 +12,10 @@ limit_zone_opacity = 0.075
 limit_line_opacity = 0.7
 limit_line_width = 1
 limit_line_style = '--'
-"pm2.5_line_width" = 2
+"pm2.5_line_width" = 1.5
 "pm2.5_line_style" = '-'
-"pm10_line_width" = 1
-"pm10_line_style" = '--'
+"pm10_line_width" = 1.5
+"pm10_line_style" = '-.'
 date_rotation = 30
 
 # Options: 'best', 'upper right', 'upper left', 'lower left', 'lower right',
