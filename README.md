@@ -63,12 +63,22 @@ pip install plotair
 ### Basic Usage
 
 ```bash
-plotair <file1> <file2> ...
+plotair [arguments] FILE [FILE ...]
 ```
 
 ### Command-Line Arguments
 
 None for now.
+
+## Configuration
+
+When you run PlotAir for the first time, a `config.toml` file is automatically created. Its location depends on your operating system (typical paths are listed below):
+
+*   **Linux:** `~/.config/plotair`
+*   **macOS:** `~/Library/Preferences/plotair`
+*   **Windows:** `C:/Users/YourUsername/AppData/Roaming/plotair`
+
+You can edit this file to customize various plotting settings. Common customizations include translating plot labels into different languages or modifying the line colors.
 
 ## License
 
