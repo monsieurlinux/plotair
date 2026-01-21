@@ -707,7 +707,7 @@ def load_config(reset_config = False):
 
     config_dir = get_config_dir(app_name)
     user_config_file = config_dir / config_file
-    default_config_file = PROJECT_ROOT / config_file
+    default_config_file = PROJECT_ROOT / app_name / config_file
 
     if not user_config_file.exists() or reset_config:
         if default_config_file.exists():
