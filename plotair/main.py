@@ -139,11 +139,14 @@ def detect_file_format(filename):
     visiblair_e_num_col = (21, 21)
     graywolf_ds_num_col = (7, 7)
 
-    with open(filename, 'r', newline='', encoding='utf-8') as file:
+    # Some files begin with the '\ufeff' character (Byte Order Mark / BOM).
+    # This breaks the first field detection. Use 'utf-8-sig' instead of 'utf-8'
+    # to automatically handle BOM.
+    with open(filename, 'r', newline='', encoding='utf-8-sig') as file:
         reader = csv.reader(file)
         first_line = next(reader)
         num_fields = len(first_line)
-        
+
         if first_line[0] == 'date':
             file_format = 'plotair'
         elif visiblair_d_num_col[0] <= num_fields <= visiblair_d_num_col[1]:
@@ -681,6 +684,7 @@ def generate_plot_pm(df, filename, title):
 
 def get_label_center(bottom_label, top_label):
     # Return a value between 0 and 1 to estimate where to center the label
+    # Divider optimized for 11x8.5 plot size, but not as good for 15x10
     fs = CONFIG['plot']['font_scale']
     divider = 72 * fs**2 - 316 * fs + 414  # Tested for fs between 0.8 and 2
     center = 0.5 + ((len(bottom_label) - len(top_label)) / divider)
