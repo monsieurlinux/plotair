@@ -2,12 +2,14 @@
 max_missing_samples = 4
 
 [plot]
-size = [11.0, 8.5]
+size = [15, 10]
 font_family = 'Noto Sans'  # Set to '' to use default system font
-font_scale = 1.4
+font_scale = 1.8
 grid2_opacity = 0.7        # 0 is fully transparent and 1 is fully opaque
 grid1_line_style = '-'     # Options: '-', '--', ':' and '-.'
 grid2_line_style = '--'
+default_line_width = 1.5
+default_line_style = '-'
 limit_zone_opacity = 0.075
 limit_line_opacity = 0.7
 limit_line_width = 1
@@ -20,14 +22,17 @@ date_rotation = 30
 
 # Options: 'best', 'upper right', 'upper left', 'lower left', 'lower right',
 # 'center left', 'center right', 'lower center', 'upper center', 'center'
-legend_location = 'best'
+legend_location = 'upper left'
 
 [axis_ranges]
 co2 = [0, 2000]
-temp_h = [0, 80]
+humidity = [0, 80]
+temp = [0, 80]
 tvoc = [0, 500]
-co_form = [0, 50]
-"pm2.5_10" = [0, 70]
+co = [0, 50]
+form = [0, 50]
+"pm2.5" = [0, 70]
+"pm10" = [0, 70]
 
 [labels]
 co2 = 'CO₂ (ppm)'
@@ -35,8 +40,8 @@ temp = 'Température (°C)'
 humidity = 'Humidité (%)'
 tvoc = 'COVT (ppb)'
 tvoc_limit = 'Limite LEED, WELL et LBC'
-co = 'Monoxyde de carbone (ppm x 10)'
-co_limit = 'Limite anomalie légère BBI'
+co = 'Monoxyde de carbone (ppm)'
+co_limit = 'Limite Santé Canada'
 form = 'Formaldéhyde (ppb)'
 form_limit = 'Limite anomalie légère BBI'
 "pm2.5" = 'PM2.5 (µg/m³)'
@@ -47,7 +52,7 @@ form_limit = 'Limite anomalie légère BBI'
 [limits]
 humidity = [40, 60]
 tvoc = 218  # ppb
-co = 4      # ppm
+co = 10     # ppm
 form = 16   # ppb
 "pm2.5" = 10
 "pm10" = 50
