@@ -140,11 +140,22 @@ def main():
                                      limit=None)
                     generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
                 elif file_format == 'visiblair_e':
-                    generate_plot_co2_hum_tmp(df, filename, args.title)
+                    ds2 = DataSeries(name='humidity',
+                                     label=CONFIG['labels']['humidity'],
+                                     color=CONFIG['colors']['humidity'],
+                                     y_range=CONFIG['axis_ranges']['temp_h'],
+                                     limit=CONFIG['limits']['humidity'])
+                    ds3 = DataSeries(name='temp',
+                                     label=CONFIG['labels']['temp'],
+                                     color=CONFIG['colors']['temp'],
+                                     y_range=CONFIG['axis_ranges']['temp_h'],
+                                     limit=None)
+                    generate_plot(df, filename, args.title, 'ht', ds1=None, ds2=ds2, ds3=ds3)
                     generate_plot_pm(df, filename, args.title)
                 elif file_format == 'graywolf_ds':
-                    generate_plot_hum_tmp(df, filename, args.title)
-                    generate_plot_voc_co_form(df, filename, args.title)
+                    return
+                    #generate_plot_hum_tmp(df, filename, args.title)
+                    #generate_plot_voc_co_form(df, filename, args.title)
             except Exception as e:
                 logger.exception(f'Unexpected error: {e}')
 
@@ -350,8 +361,7 @@ class DataSeries:
         self.limit = limit      # single value or min/max tuple
 
 
-#                                       cht    co2  hum  tmp
-def generate_plot(df, filename, title, suffix, ds1, ds2, ds3):
+def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     # The dates must be in a non-index column
     df = df.reset_index()
 
@@ -366,17 +376,21 @@ def generate_plot(df, filename, title, suffix, ds1, ds2, ds3):
     ax2 = ax1.twinx()  # Secondary y axis
 
     # Plot the data series
-    sns.lineplot(data=df, x='date', y=ds1.name, ax=ax1, color=ds1.color,
-                 label=ds1.label, legend=False)
+    if ds1:
+        sns.lineplot(data=df, x='date', y=ds1.name, ax=ax1, color=ds1.color,
+                     label=ds1.label, legend=False)
+
     sns.lineplot(data=df, x='date', y=ds2.name, ax=ax2, color=ds2.color,
                  label=ds2.label, legend=False)
     sns.lineplot(data=df, x='date', y=ds3.name, ax=ax2, color=ds3.color,
                  label=ds3.label, legend=False)
 
     # Set the ranges for both y axes
-    cmin, cmax = ds1.y_range  # TODO: can we feed this directly to set_ylim()?
+    if ds1:
+        cmin, cmax = ds1.y_range  # TODO: can we feed this directly to set_ylim()?
+        ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
+
     tmin, tmax = ds2.y_range
-    ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
     ax2.set_ylim(tmin, tmax)
 
     # Add a grid for the x axis and the y axes
@@ -422,94 +436,18 @@ def generate_plot(df, filename, title, suffix, ds1, ds2, ds3):
     ax1.legend(lines1 + lines2, labels1 + labels2,
                loc=CONFIG['plot']['legend_location'])
 
+    if not ds1:
+        # Remove the left y-axis elements from ax1
+        ax1.grid(axis='y', visible=False)
+        ax1.spines['left'].set_visible(False)
+        ax1.tick_params(axis='y', left=False, labelleft=False)
+
     # Adjust the plot margins to make room for the labels
     plt.tight_layout()
 
     # Save the plot as a PNG image
     # TODO: build to plot suffix from the 1st char of each series
     plt.savefig(get_plot_filename(filename, f'-{suffix}'))
-    plt.close()
-
-
-def generate_plot_hum_tmp(df, filename, title):
-    # The dates must be in a non-index column
-    df = df.reset_index()
-
-    # Set a theme and scale all fonts
-    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
-
-    ff = CONFIG['plot']['font_family']
-    if ff != '': plt.rcParams['font.family'] = ff
-
-    # Set up the matplotlib figure and axes
-    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
-    ax2 = ax1.twinx()  # Secondary y axis
-
-    # Plot the data series
-    #sns.lineplot(data=df, x='date', y='co2', ax=ax1, color=CONFIG['colors']['co2'],
-    #             label=CONFIG['labels']['co2'], legend=False)
-    sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=CONFIG['colors']['humidity'],
-                 label=CONFIG['labels']['humidity'], legend=False)
-    sns.lineplot(data=df, x='date', y='temp', ax=ax2, color=CONFIG['colors']['temp'],
-                 label=CONFIG['labels']['temp'], legend=False)
-
-    # Set the ranges for both y axes
-    cmin, cmax = CONFIG['axis_ranges']['co2']
-    tmin, tmax = CONFIG['axis_ranges']['temp_h']
-    ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
-    ax2.set_ylim(tmin, tmax)
-
-    # Add a grid for the x axis and the y axes
-    # This is already done if using the whitegrid theme
-    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
-    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
-
-    # Set the background color of the humidity comfort zone
-    hmin, hmax = CONFIG['limits']['humidity']
-    ax2.axhspan(ymin=hmin, ymax=hmax,
-                facecolor=CONFIG['colors']['humidity'], alpha=CONFIG['plot']['limit_zone_opacity'])
-
-    # Customize the plot title, labels and ticks
-    ax1.set_title(get_plot_title(title, filename))
-    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
-    #ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['co2'])
-    ax1.set_xlabel('')
-    #ax1.set_ylabel(CONFIG['labels']['co2'], color=CONFIG['colors']['co2'])
-    ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
-
-    # Define the position for the center of the right y axis label
-    bottom_label = CONFIG['labels']['temp'] + '  '
-    top_label = '  ' + CONFIG['labels']['humidity']
-    x = 1.07  # Slightly to the right of the axis
-    y = get_label_center(bottom_label, top_label)   # Vertically centered
-
-    # Place the first (bottom) part of the label
-    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
-             color=CONFIG['colors']['temp'], rotation='vertical',
-             ha='center', va='top')
-
-    # Place the second (top) part of the label
-    ax2.text(x, y, top_label, transform=ax2.transAxes,
-            color=CONFIG['colors']['humidity'], rotation='vertical',
-            ha='center', va='bottom')
-
-    # Create a combined legend
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2,
-               loc=CONFIG['plot']['legend_location'])
-
-    # Remove the left y-axis elements from ax1
-    ax1.grid(axis='y', visible=False)
-    ax1.spines['left'].set_visible(False)
-    ax1.tick_params(axis='y', left=False, labelleft=False)
-
-    # Adjust the plot margins to make room for the labels
-    plt.tight_layout()
-
-    # Save the plot as a PNG image
-    plt.savefig(get_plot_filename(filename, '-ht'))
     plt.close()
 
 
