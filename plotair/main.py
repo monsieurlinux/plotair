@@ -122,7 +122,23 @@ def main():
                 if file_format == 'plotair':
                     generate_plot_co2_hum_tmp(df, filename, args.title)
                 elif file_format == 'visiblair_d':
-                    generate_plot_co2_hum_tmp(df, filename, args.title)
+                    # TODO: we could send only the name and let generate_plot() get the other variables
+                    ds1 = DataSeries(name='co2',
+                                     label=CONFIG['labels']['co2'],
+                                     color=CONFIG['colors']['co2'],
+                                     y_range=CONFIG['axis_ranges']['co2'],
+                                     limit=None)
+                    ds2 = DataSeries(name='humidity',
+                                     label=CONFIG['labels']['humidity'],
+                                     color=CONFIG['colors']['humidity'],
+                                     y_range=CONFIG['axis_ranges']['temp_h'],
+                                     limit=CONFIG['limits']['humidity'])
+                    ds3 = DataSeries(name='temp',
+                                     label=CONFIG['labels']['temp'],
+                                     color=CONFIG['colors']['temp'],
+                                     y_range=CONFIG['axis_ranges']['temp_h'],
+                                     limit=None)
+                    generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
                 elif file_format == 'visiblair_e':
                     generate_plot_co2_hum_tmp(df, filename, args.title)
                     generate_plot_pm(df, filename, args.title)
@@ -221,9 +237,9 @@ def read_data_visiblair_d(filename):
                 # Convert each field to its target data type
                 parsed_row = {
                     'date': pd.to_datetime(fields[0], format='%Y-%m-%d %H:%M:%S'),
-                    'co2': np.uint16(fields[1]),           # 0 to 10,000 ppm
-                    'temperature': np.float32(fields[2]),  # -40 to 70 °C
-                    'humidity': np.uint8(fields[3])        # 0 to 100% RH
+                    'co2': np.uint16(fields[1]),     # 0 to 10,000 ppm
+                    'temp': np.float32(fields[2]),   # -40 to 70 °C
+                    'humidity': np.uint8(fields[3])  # 0 to 100% RH
                 }
                 # If conversion succeeds, add the parsed row to the list
                 valid_rows.append(parsed_row)
@@ -251,7 +267,7 @@ def read_data_visiblair_e(filename):
     df = pd.read_csv(filename)
 
     # Rename the columns
-    df.columns = ['uuid', 'date', 'co2', 'humidity', 'temperature', 'pm0.1',
+    df.columns = ['uuid', 'date', 'co2', 'humidity', 'temp', 'pm0.1',
                   'pm0.3', 'pm0.5', 'pm1', 'pm2.5', 'pm5', 'pm10', 'pressure',
                   'voc_index', 'firmware', 'model', 'pcb', 'display_rate',
                   'is_charging', 'is_ac_in', 'batt_voltage']
@@ -274,7 +290,7 @@ def read_data_graywolf_ds(filename):
     df = pd.read_csv(filename)
 
     # Rename the columns
-    df.columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temperature', 'filename']
+    df.columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temp', 'filename']
 
     # Convert the 'date' column to pandas datetime objects
     df['date'] = pd.to_datetime(df['date'], format='%d-%b-%y %I:%M:%S %p')
@@ -324,6 +340,97 @@ def delete_old_data(df, start_date = None, stop_date = None):
     return df
     
 
+class DataSeries:
+    def __init__(self, name='', label='', color='tab:blue', y_range=None, limit=None):
+        # y_range could be replaced by y_min and y_max
+        self.name = name
+        self.label = label
+        self.color = color
+        self.y_range = y_range  # min/max tuple, e.g. (0, 100)
+        self.limit = limit      # single value or min/max tuple
+
+
+#                                       cht    co2  hum  tmp
+def generate_plot(df, filename, title, suffix, ds1, ds2, ds3):
+    # The dates must be in a non-index column
+    df = df.reset_index()
+
+    # Set a theme and scale all fonts
+    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
+
+    ff = CONFIG['plot']['font_family']
+    if ff != '': plt.rcParams['font.family'] = ff
+
+    # Set up the matplotlib figure and axes
+    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
+    ax2 = ax1.twinx()  # Secondary y axis
+
+    # Plot the data series
+    sns.lineplot(data=df, x='date', y=ds1.name, ax=ax1, color=ds1.color,
+                 label=ds1.label, legend=False)
+    sns.lineplot(data=df, x='date', y=ds2.name, ax=ax2, color=ds2.color,
+                 label=ds2.label, legend=False)
+    sns.lineplot(data=df, x='date', y=ds3.name, ax=ax2, color=ds3.color,
+                 label=ds3.label, legend=False)
+
+    # Set the ranges for both y axes
+    cmin, cmax = ds1.y_range  # TODO: can we feed this directly to set_ylim()?
+    tmin, tmax = ds2.y_range
+    ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
+    ax2.set_ylim(tmin, tmax)
+
+    # Add a grid for the x axis and the y axes
+    # This is already done if using the whitegrid theme
+    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
+    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
+    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
+
+    # TODO: if the limit is a tuple, display a background range
+    #       if the limit is a single value, display a line
+    # Set the background color of the humidity comfort zone
+    hmin, hmax = ds2.limit
+    ax2.axhspan(ymin=hmin, ymax=hmax,
+                facecolor=ds2.color, alpha=CONFIG['plot']['limit_zone_opacity'])
+
+    # Customize the plot title, labels and ticks
+    ax1.set_title(get_plot_title(title, filename))
+    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
+    ax1.tick_params(axis='y', labelcolor=ds1.color)
+    ax1.set_xlabel('')
+    ax1.set_ylabel(ds1.label, color=ds1.color)
+    ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
+
+    # Define the position for the center of the right y axis label
+    bottom_label = ds3.label + '  '
+    top_label = '  ' + ds2.label
+    x = 1.07  # Slightly to the right of the axis
+    y = get_label_center(bottom_label, top_label)   # Vertically centered
+
+    # Place the first (bottom) part of the label
+    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
+             color=ds3.color, rotation='vertical',
+             ha='center', va='top')
+
+    # Place the second (top) part of the label
+    ax2.text(x, y, top_label, transform=ax2.transAxes,
+            color=ds2.color, rotation='vertical',
+            ha='center', va='bottom')
+
+    # Create a combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+               loc=CONFIG['plot']['legend_location'])
+
+    # Adjust the plot margins to make room for the labels
+    plt.tight_layout()
+
+    # Save the plot as a PNG image
+    # TODO: build to plot suffix from the 1st char of each series
+    plt.savefig(get_plot_filename(filename, f'-{suffix}'))
+    plt.close()
+
+
 def generate_plot_co2_hum_tmp(df, filename, title):
     # The dates must be in a non-index column
     df = df.reset_index()
@@ -343,7 +450,7 @@ def generate_plot_co2_hum_tmp(df, filename, title):
                  label=CONFIG['labels']['co2'], legend=False)
     sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=CONFIG['colors']['humidity'],
                  label=CONFIG['labels']['humidity'], legend=False)
-    sns.lineplot(data=df, x='date', y='temperature', ax=ax2, color=CONFIG['colors']['temp'],
+    sns.lineplot(data=df, x='date', y='temp', ax=ax2, color=CONFIG['colors']['temp'],
                  label=CONFIG['labels']['temp'], legend=False)
 
     # Set the ranges for both y axes
@@ -420,7 +527,7 @@ def generate_plot_hum_tmp(df, filename, title):
     #             label=CONFIG['labels']['co2'], legend=False)
     sns.lineplot(data=df, x='date', y='humidity', ax=ax2, color=CONFIG['colors']['humidity'],
                  label=CONFIG['labels']['humidity'], legend=False)
-    sns.lineplot(data=df, x='date', y='temperature', ax=ax2, color=CONFIG['colors']['temp'],
+    sns.lineplot(data=df, x='date', y='temp', ax=ax2, color=CONFIG['colors']['temp'],
                  label=CONFIG['labels']['temp'], legend=False)
 
     # Set the ranges for both y axes
