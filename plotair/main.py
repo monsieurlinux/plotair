@@ -53,8 +53,14 @@ def main():
                         help='sensor data file to process')
     parser.add_argument('-a', '--all-dates', action='store_true',
                         help='plot all dates (otherwise only latest sequence)')
+    parser.add_argument('-b', '--boxplot', action='store_true',
+                        help='generate boxplots along with text stats')
     parser.add_argument('-m', '--merge', metavar='FIELD',
                         help='merge field from file1 to file2, and output to file3')
+    parser.add_argument('-o', '--filter-outliers', action='store_true',
+                        help='filter out outliers from the plots')
+    parser.add_argument('--filter-multiplier', type=float, default=1.5, metavar='MULTIPLIER',
+                        help='multiplier for IQR outlier filtering (default: 1.5)')
     parser.add_argument('-r', '--reset-config', action='store_true',
                         help='reset configuration file to default')
     parser.add_argument('-s', '--start-date', metavar='DATE',
@@ -106,34 +112,48 @@ def main():
                 file_format, df, num_valid_rows, num_invalid_rows = read_data(filename)
 
                 if num_valid_rows > 0:
-                    logger.debug(f'{num_valid_rows} row(s) read')
+                    logger.debug(f'{num_valid_rows} valid row(s) read')
                 else:
                     logger.error('Unsupported file format')
                     return
 
                 if num_invalid_rows > 0:
-                    logger.info(f'{num_invalid_rows} invalid row(s) ignored')
+                    percent_ignored = round(num_invalid_rows / (num_valid_rows + num_invalid_rows) * 100)
+                    logger.info(f'{num_invalid_rows} invalid row(s) ignored ({percent_ignored}%)')
 
                 if not args.all_dates:
                     df = delete_old_data(df, args.start_date, args.stop_date)
 
-                generate_stats(df, filename)
+                generate_stats(df, filename, args.boxplot)
 
                 if file_format == 'plotair':
-                    generate_plot_co2_hum_tmp(df, filename, args.title)
+                    generate_plot(df, filename, args.title, suffix='cht',
+                             series1='co2', series2='humidity', series3='temp',
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
                 elif file_format == 'visiblair_d':
                     generate_plot(df, filename, args.title, suffix='cht',
-                             series1='co2', series2='humidity', series3='temp')
+                             series1='co2', series2='humidity', series3='temp',
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
                 elif file_format == 'visiblair_e':
                     generate_plot(df, filename, args.title, suffix='cht',
-                             series1='co2', series2='humidity', series3='temp')
+                             series1='co2', series2='humidity', series3='temp',
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
                     generate_plot(df, filename, args.title, suffix='pm',
-                             series1=None, series2='pm2.5', series3='pm10')
+                             series1=None, series2='pm2.5', series3='pm10',
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
                 elif file_format == 'graywolf_ds':
                     generate_plot(df, filename, args.title, suffix='ht',
-                             series1=None, series2='humidity', series3='temp')
+                             series1=None, series2='humidity', series3='temp',
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
                     generate_plot(df, filename, args.title, suffix='vcf',
-                             series1='tvoc', series2='form', series3='co')
+                             series1='tvoc', series2='form', series3='co',
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
             except Exception as e:
                 logger.exception(f'Unexpected error: {e}')
 
@@ -218,7 +238,7 @@ def read_data_visiblair_d(filename):
             
             if not (5 <= len(fields) <= 6):
                 # Skip lines with an invalid number of columns
-                logger.debug(f'Skipping line (number of columns): {line}')
+                #logger.debug(f'Skipping line (number of columns): {line}')
                 num_invalid_rows += 1
                 continue
                 
@@ -235,7 +255,7 @@ def read_data_visiblair_d(filename):
                 
             except (ValueError, TypeError) as e:
                 # Skip lines with conversion errors
-                logger.debug(f'Skipping line (conversion error): {line}')
+                #logger.debug(f'Skipping line (conversion error): {line}')
                 num_invalid_rows += 1
                 continue
 
@@ -342,7 +362,9 @@ class DataSeries:
         self.linestyle = CONFIG['plot'].get(self.name + '_line_style')
 
 
-def generate_plot(df, filename, title, suffix='', series1=None, series2=None, series3=None):
+def generate_plot(df, filename, title, suffix='',
+                  series1=None, series2=None, series3=None,
+                  filter_outliers=False, filter_multiplier=None):
     # The dates must be in a non-index column
     df = df.reset_index()
     
@@ -375,7 +397,12 @@ def generate_plot(df, filename, title, suffix='', series1=None, series2=None, se
         else:
             linestyle = CONFIG['plot']['default_line_style']
 
-        sns.lineplot(data=df, x='date', y=ds1.name, ax=ax1, color=ds1.color,
+        if filter_outliers:
+            df1 = remove_outliers_iqr(df, ds1.name, multiplier=filter_multiplier)
+        else:
+            df1 = df
+
+        sns.lineplot(data=df1, x='date', y=ds1.name, ax=ax1, color=ds1.color,
                      label=ds1.label, legend=False,
                      linewidth=linewidth, linestyle=linestyle)
 
@@ -404,13 +431,12 @@ def generate_plot(df, filename, title, suffix='', series1=None, series2=None, se
     else:
         linestyle = CONFIG['plot']['default_line_style']
 
-    # TODO: Should we do that systematically for all data series?
-    if ds2.name == 'form':
-        df_filtered = df[df['form'] != 0]  # Filter out rows where 'form' is zero
+    if filter_outliers:
+        df2 = remove_outliers_iqr(df, ds2.name, multiplier=filter_multiplier)
     else:
-        df_filtered = df
+        df2 = df
 
-    sns.lineplot(data=df_filtered, x='date', y=ds2.name, ax=ax2, color=ds2.color,
+    sns.lineplot(data=df2, x='date', y=ds2.name, ax=ax2, color=ds2.color,
                  label=ds2.label, legend=False,
                  linewidth=linewidth, linestyle=linestyle)
 
@@ -443,7 +469,12 @@ def generate_plot(df, filename, title, suffix='', series1=None, series2=None, se
     #co_scale = 10
     #df['co_scaled'] = df['co'] * co_scale
 
-    sns.lineplot(data=df, x='date', y=ds3.name, ax=ax2, color=ds3.color,
+    if filter_outliers:
+        df3 = remove_outliers_iqr(df, ds3.name, multiplier=filter_multiplier)
+    else:
+        df3 = df
+
+    sns.lineplot(data=df3, x='date', y=ds3.name, ax=ax2, color=ds3.color,
                  label=ds3.label, legend=False,
                  linewidth=linewidth, linestyle=linestyle)
 
@@ -517,9 +548,53 @@ def generate_plot(df, filename, title, suffix='', series1=None, series2=None, se
     plt.tight_layout()
 
     # Save the plot as a PNG image
-    # TODO: build to plot suffix from the 1st char of each series
+    # TODO: auto build the plot suffix from the 1st char of each series?
     plt.savefig(get_plot_filename(filename, f'-{suffix}'))
     plt.close()
+
+
+def remove_outliers_iqr(df, column, multiplier=None):
+    """
+    Remove outliers using Interquartile Range (IQR) method
+    multiplier = 1.0: Tight bounds, more outliers removed
+    multiplier = 1.5: Standard bounds, moderate outliers removed  
+    multiplier = 2.0: Wide bounds, fewer outliers removed
+    """
+    if multiplier == None:
+        multiplier = 1.5  # Default value
+        
+    Q1 = df[column].quantile(0.25)
+    Q3 = df[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - multiplier * IQR
+    upper_bound = Q3 + multiplier * IQR
+    
+    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+
+# WARNING: Untested function
+def remove_outliers_zscore(df, column, threshold=3):
+    # from scipy import stats ?
+    z_scores = np.abs(stats.zscore(df[column]))
+    return df[z_scores < threshold]
+
+
+# WARNING: Untested function
+def remove_outliers_std(df, column, n_std=2):
+    mean = df[column].mean()
+    std = df[column].std()
+    lower_bound = mean - n_std * std
+    upper_bound = mean + n_std * std
+    
+    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+
+# WARNING: Untested function
+def remove_outliers_percentile(df, column, lower_percentile=5, upper_percentile=95):
+    lower_bound = df[column].quantile(lower_percentile/100)
+    upper_bound = df[column].quantile(upper_percentile/100)
+    
+    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
 
 
 def get_label_center(bottom_label, top_label):
@@ -531,11 +606,17 @@ def get_label_center(bottom_label, top_label):
     return center
 
 
-def generate_stats(df, filename):
+def generate_stats(df, filename, boxplot=False):
     summary = df.describe()
 
     with open(get_stats_filename(filename), 'w') as file:
         file.write(summary.to_string())
+
+    if boxplot:
+        for column in summary.columns.tolist():
+            box = sns.boxplot(data=df, y=column)
+            plt.savefig(get_boxplot_filename(filename, f'-{column}'))
+            plt.close()
 
 
 def load_config(reset_config = False):
@@ -599,6 +680,11 @@ def get_plot_title(title, filename):
 def get_plot_filename(filename, suffix = ''):
     p = Path(filename)
     return f'{p.parent}/{p.stem}{suffix}.png'
+
+
+def get_boxplot_filename(filename, suffix = ''):
+    p = Path(filename)
+    return f'{p.parent}/{p.stem}-boxplot{suffix}.png'
 
 
 def get_stats_filename(filename):
