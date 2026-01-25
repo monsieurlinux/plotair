@@ -122,89 +122,18 @@ def main():
                 if file_format == 'plotair':
                     generate_plot_co2_hum_tmp(df, filename, args.title)
                 elif file_format == 'visiblair_d':
-                    # TODO: we could send only the name and let generate_plot() get the other variables
-                    ds1 = DataSeries(name='co2',
-                                     label=CONFIG['labels']['co2'],
-                                     color=CONFIG['colors']['co2'],
-                                     y_range=CONFIG['axis_ranges']['co2'],
-                                     limit=None)
-                    ds2 = DataSeries(name='humidity',
-                                     label=CONFIG['labels']['humidity'],
-                                     color=CONFIG['colors']['humidity'],
-                                     y_range=CONFIG['axis_ranges']['temp_h'],
-                                     limit=CONFIG['limits']['humidity'])
-                    ds3 = DataSeries(name='temp',
-                                     label=CONFIG['labels']['temp'],
-                                     color=CONFIG['colors']['temp'],
-                                     y_range=CONFIG['axis_ranges']['temp_h'],
-                                     limit=None)
-                    generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
+                    generate_plot(df, filename, args.title, suffix='cht',
+                             series1='co2', series2='humidity', series3='temp')
                 elif file_format == 'visiblair_e':
-                    ds1 = DataSeries(name='co2',
-                                     label=CONFIG['labels']['co2'],
-                                     color=CONFIG['colors']['co2'],
-                                     y_range=CONFIG['axis_ranges']['co2'],
-                                     limit=None)
-                    ds2 = DataSeries(name='humidity',
-                                     label=CONFIG['labels']['humidity'],
-                                     color=CONFIG['colors']['humidity'],
-                                     y_range=CONFIG['axis_ranges']['temp_h'],
-                                     limit=CONFIG['limits']['humidity'])
-                    ds3 = DataSeries(name='temp',
-                                     label=CONFIG['labels']['temp'],
-                                     color=CONFIG['colors']['temp'],
-                                     y_range=CONFIG['axis_ranges']['temp_h'],
-                                     limit=None)
-                    generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
-
-                    ds2 = DataSeries(name='pm2.5',
-                                     label=CONFIG['labels']['pm2.5'],
-                                     color=CONFIG['colors']['pm2.5'],
-                                     y_range=CONFIG['axis_ranges']['pm2.5_10'],
-                                     limit=CONFIG['limits']['pm2.5'],
-                                     limit_label=CONFIG['labels']['pm2.5_limit'],
-                                     linewidth=CONFIG['plot']['pm2.5_line_width'],
-                                     linestyle=CONFIG['plot']['pm2.5_line_style'])
-                    ds3 = DataSeries(name='pm10',
-                                     label=CONFIG['labels']['pm10'],
-                                     color=CONFIG['colors']['pm10'],
-                                     y_range=CONFIG['axis_ranges']['pm2.5_10'],
-                                     limit=CONFIG['limits']['pm10'],
-                                     limit_label=CONFIG['labels']['pm10_limit'],
-                                     linewidth=CONFIG['plot']['pm10_line_width'],
-                                     linestyle=CONFIG['plot']['pm10_line_style'])
-                    generate_plot(df, filename, args.title, 'pm', ds1=None, ds2=ds2, ds3=ds3)
+                    generate_plot(df, filename, args.title, suffix='cht',
+                             series1='co2', series2='humidity', series3='temp')
+                    generate_plot(df, filename, args.title, suffix='pm',
+                             series1=None, series2='pm2.5', series3='pm10')
                 elif file_format == 'graywolf_ds':
-                    ds2 = DataSeries(name='humidity',
-                                     label=CONFIG['labels']['humidity'],
-                                     color=CONFIG['colors']['humidity'],
-                                     y_range=CONFIG['axis_ranges']['temp_h'],
-                                     limit=CONFIG['limits']['humidity'])
-                    ds3 = DataSeries(name='temp',
-                                     label=CONFIG['labels']['temp'],
-                                     color=CONFIG['colors']['temp'],
-                                     y_range=CONFIG['axis_ranges']['temp_h'],
-                                     limit=None)
-                    generate_plot(df, filename, args.title, 'ht', ds1=None, ds2=ds2, ds3=ds3)
-
-                    ds1 = DataSeries(name='tvoc',
-                                     label=CONFIG['labels']['tvoc'],
-                                     color=CONFIG['colors']['tvoc'],
-                                     y_range=CONFIG['axis_ranges']['tvoc'],
-                                     limit=CONFIG['limits']['tvoc'])
-                    ds2 = DataSeries(name='form',
-                                     label=CONFIG['labels']['form'],
-                                     color=CONFIG['colors']['form'],
-                                     y_range=CONFIG['axis_ranges']['co_form'],
-                                     limit=CONFIG['limits']['form'],
-                                     limit_label=CONFIG['labels']['form_limit'])
-                    ds3 = DataSeries(name='co',
-                                     label=CONFIG['labels']['co'],
-                                     color=CONFIG['colors']['co'],
-                                     y_range=CONFIG['axis_ranges']['co_form'],
-                                     limit=CONFIG['limits']['co'],
-                                     limit_label=CONFIG['labels']['co_limit'])
-                    generate_plot(df, filename, args.title, 'vcf', ds1, ds2, ds3)
+                    generate_plot(df, filename, args.title, suffix='ht',
+                             series1=None, series2='humidity', series3='temp')
+                    generate_plot(df, filename, args.title, suffix='vcf',
+                             series1='tvoc', series2='form', series3='co')
             except Exception as e:
                 logger.exception(f'Unexpected error: {e}')
 
@@ -401,22 +330,27 @@ def delete_old_data(df, start_date = None, stop_date = None):
     
 
 class DataSeries:
-    def __init__(self, name='', label='', color='tab:blue', y_range=None, limit=None, limit_label=None, linewidth=None, linestyle=None):
+    def __init__(self, name=''):
         # y_range could be replaced by y_min and y_max
         self.name = name
-        self.label = label
-        self.color = color
-        self.y_range = y_range  # min/max tuple, e.g. (0, 100)
-        self.limit = limit      # single value or min/max tuple
-        self.limit_label = limit_label
-        self.linewidth = linewidth
-        self.linestyle = linestyle
+        self.label = CONFIG['labels'].get(self.name)
+        self.color = CONFIG['colors'].get(self.name)
+        self.y_range = CONFIG['axis_ranges'].get(self.name)  # min/max tuple, e.g. (0, 100)
+        self.limit = CONFIG['limits'].get(self.name)  # single value or min/max tuple
+        self.limit_label = CONFIG['labels'].get(self.name + '_limit')
+        self.linewidth = CONFIG['plot'].get(self.name + '_line_width')
+        self.linestyle = CONFIG['plot'].get(self.name + '_line_style')
 
 
-def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
+def generate_plot(df, filename, title, suffix='', series1=None, series2=None, series3=None):
     # The dates must be in a non-index column
     df = df.reset_index()
-
+    
+    # Get each series configuration
+    ds1 = DataSeries(name=series1) if series1 else None
+    ds2 = DataSeries(name=series2) if series2 else None
+    ds3 = DataSeries(name=series3) if series3 else None
+    
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
@@ -532,6 +466,7 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
         cmin, cmax = ds1.y_range  # TODO: can we feed this directly to set_ylim()?
         ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
 
+    # TODO: Compare values for ds2 and ds3
     tmin, tmax = ds2.y_range
     ax2.set_ylim(tmin, tmax)
 
@@ -602,11 +537,6 @@ def generate_stats(df, filename):
     with open(get_stats_filename(filename), 'w') as file:
         file.write(summary.to_string())
 
-    #for column in summary.columns.tolist():
-    #    box = sns.boxplot(data=df, y=column)
-    #    plt.savefig(get_boxplot_filename(filename, f'-{column}'))
-    #    plt.close()
-
 
 def load_config(reset_config = False):
     global CONFIG
@@ -669,11 +599,6 @@ def get_plot_title(title, filename):
 def get_plot_filename(filename, suffix = ''):
     p = Path(filename)
     return f'{p.parent}/{p.stem}{suffix}.png'
-
-
-#def get_boxplot_filename(filename, suffix = ''):
-#    p = Path(filename)
-#    return f'{p.parent}/{p.stem}-boxplot{suffix}.png'
 
 
 def get_stats_filename(filename):
