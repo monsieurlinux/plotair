@@ -140,6 +140,24 @@ def main():
                                      limit=None)
                     generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
                 elif file_format == 'visiblair_e':
+                    ds1 = DataSeries(name='co2',
+                                     label=CONFIG['labels']['co2'],
+                                     color=CONFIG['colors']['co2'],
+                                     y_range=CONFIG['axis_ranges']['co2'],
+                                     limit=None)
+                    ds2 = DataSeries(name='humidity',
+                                     label=CONFIG['labels']['humidity'],
+                                     color=CONFIG['colors']['humidity'],
+                                     y_range=CONFIG['axis_ranges']['temp_h'],
+                                     limit=CONFIG['limits']['humidity'])
+                    ds3 = DataSeries(name='temp',
+                                     label=CONFIG['labels']['temp'],
+                                     color=CONFIG['colors']['temp'],
+                                     y_range=CONFIG['axis_ranges']['temp_h'],
+                                     limit=None)
+                    generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
+                    #generate_plot_pm(df, filename, args.title)
+                elif file_format == 'graywolf_ds':
                     ds2 = DataSeries(name='humidity',
                                      label=CONFIG['labels']['humidity'],
                                      color=CONFIG['colors']['humidity'],
@@ -151,10 +169,6 @@ def main():
                                      y_range=CONFIG['axis_ranges']['temp_h'],
                                      limit=None)
                     generate_plot(df, filename, args.title, 'ht', ds1=None, ds2=ds2, ds3=ds3)
-                    generate_plot_pm(df, filename, args.title)
-                elif file_format == 'graywolf_ds':
-                    return
-                    #generate_plot_hum_tmp(df, filename, args.title)
                     #generate_plot_voc_co_form(df, filename, args.title)
             except Exception as e:
                 logger.exception(f'Unexpected error: {e}')
@@ -409,9 +423,10 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
     ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
-    ax1.tick_params(axis='y', labelcolor=ds1.color)
+    if ds1:
+        ax1.tick_params(axis='y', labelcolor=ds1.color)
+        ax1.set_ylabel(ds1.label, color=ds1.color)
     ax1.set_xlabel('')
-    ax1.set_ylabel(ds1.label, color=ds1.color)
     ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
     # Define the position for the center of the right y axis label
