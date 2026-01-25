@@ -186,7 +186,25 @@ def main():
                                      y_range=CONFIG['axis_ranges']['temp_h'],
                                      limit=None)
                     generate_plot(df, filename, args.title, 'ht', ds1=None, ds2=ds2, ds3=ds3)
-                    #generate_plot_voc_co_form(df, filename, args.title)
+
+                    ds1 = DataSeries(name='tvoc',
+                                     label=CONFIG['labels']['tvoc'],
+                                     color=CONFIG['colors']['tvoc'],
+                                     y_range=CONFIG['axis_ranges']['tvoc'],
+                                     limit=CONFIG['limits']['tvoc'])
+                    ds2 = DataSeries(name='form',
+                                     label=CONFIG['labels']['form'],
+                                     color=CONFIG['colors']['form'],
+                                     y_range=CONFIG['axis_ranges']['co_form'],
+                                     limit=CONFIG['limits']['form'],
+                                     limit_label=CONFIG['labels']['form_limit'])
+                    ds3 = DataSeries(name='co',
+                                     label=CONFIG['labels']['co'],
+                                     color=CONFIG['colors']['co'],
+                                     y_range=CONFIG['axis_ranges']['co_form'],
+                                     limit=CONFIG['limits']['co'],
+                                     limit_label=CONFIG['labels']['co_limit'])
+                    generate_plot(df, filename, args.title, 'vcf', ds1, ds2, ds3)
             except Exception as e:
                 logger.exception(f'Unexpected error: {e}')
 
@@ -409,10 +427,37 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
+    # TODO: add functions for repetitive code
+
     # Plot series #1 main line
     if ds1:
+        if ds1.linewidth:
+            linewidth = ds1.linewidth
+        else:
+            linewidth = CONFIG['plot']['default_line_width']
+
+        if ds1.linestyle:
+            linestyle = ds1.linestyle
+        else:
+            linestyle = CONFIG['plot']['default_line_style']
+
         sns.lineplot(data=df, x='date', y=ds1.name, ax=ax1, color=ds1.color,
-                     label=ds1.label, legend=False)
+                     label=ds1.label, legend=False,
+                     linewidth=linewidth, linestyle=linestyle)
+
+        # Display series #1 limit line or zone
+        if ds1.limit and not isinstance(ds1.limit, list):
+            # Plot the limit line
+            line = ax1.axhline(y=ds1.limit, color=ds1.color, label=ds1.limit_label,
+                               linewidth=CONFIG['plot']['limit_line_width'],
+                               linestyle=CONFIG['plot']['limit_line_style'])
+            line.set_alpha(CONFIG['plot']['limit_line_opacity'])
+
+        if ds1.limit and isinstance(ds1.limit, list):
+            # Set the background color of the limit zone
+            hmin, hmax = ds1.limit
+            ax1.axhspan(ymin=hmin, ymax=hmax, facecolor=ds1.color,
+                        alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Plot series #2 main line
     if ds2.linewidth:
@@ -425,7 +470,13 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     else:
         linestyle = CONFIG['plot']['default_line_style']
 
-    sns.lineplot(data=df, x='date', y=ds2.name, ax=ax2, color=ds2.color,
+    # TODO: Should we do that systematically for all data series?
+    if ds2.name == 'form':
+        df_filtered = df[df['form'] != 0]  # Filter out rows where 'form' is zero
+    else:
+        df_filtered = df
+
+    sns.lineplot(data=df_filtered, x='date', y=ds2.name, ax=ax2, color=ds2.color,
                  label=ds2.label, legend=False,
                  linewidth=linewidth, linestyle=linestyle)
 
@@ -453,6 +504,10 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
         linestyle = ds3.linestyle
     else:
         linestyle = CONFIG['plot']['default_line_style']
+
+    # TODO: Do we still want to scale the CO data series?
+    #co_scale = 10
+    #df['co_scaled'] = df['co'] * co_scale
 
     sns.lineplot(data=df, x='date', y=ds3.name, ax=ax2, color=ds3.color,
                  label=ds3.label, legend=False,
@@ -529,103 +584,6 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     # Save the plot as a PNG image
     # TODO: build to plot suffix from the 1st char of each series
     plt.savefig(get_plot_filename(filename, f'-{suffix}'))
-    plt.close()
-
-
-def generate_plot_voc_co_form(df, filename, title):
-    # The dates must be in a non-index column
-    df = df.reset_index()
-    
-    # Set a theme and scale all fonts
-    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
-
-    ff = CONFIG['plot']['font_family']
-    if ff != '': plt.rcParams['font.family'] = ff
-
-    # Set up the matplotlib figure and axes
-    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
-    ax2 = ax1.twinx()  # Secondary y axis
-
-    # Plot the TVOC main line
-    sns.lineplot(data=df, x='date', y='tvoc', ax=ax1, legend=False,
-                 color=CONFIG['colors']['tvoc'], label=CONFIG['labels']['tvoc'])
-
-    # Plot the TVOC limit line
-    line = ax1.axhline(y=CONFIG['limits']['tvoc'], color=CONFIG['colors']['tvoc'],
-                linestyle=CONFIG['plot']['limit_line_style'], linewidth=CONFIG['plot']['limit_line_width'],
-                label=CONFIG['labels']['tvoc_limit'])
-    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
-
-    # Plot the formaldehyde main line
-    df_filtered = df[df['form'] != 0]  # Filter out rows where 'form' is zero
-    sns.lineplot(data=df_filtered, x='date', y='form', ax=ax2, legend=False,
-                 color=CONFIG['colors']['form'], label=CONFIG['labels']['form'])
-
-    # Plot the formaldehyde limit line
-    line = ax2.axhline(y=CONFIG['limits']['form'], color=CONFIG['colors']['form'],
-                linestyle=CONFIG['plot']['limit_line_style'], linewidth=CONFIG['plot']['limit_line_width'],
-                label=CONFIG['labels']['form_limit'])
-    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
-
-    # Plot the CO main line
-    co_scale = 10
-    df['co_scaled'] = df['co'] * co_scale
-    sns.lineplot(data=df, x='date', y='co_scaled', ax=ax2, legend=False,
-                 color=CONFIG['colors']['co'], label=CONFIG['labels']['co'])
-
-    # Plot the CO limit line
-    line = ax2.axhline(y=CONFIG['limits']['co'] * co_scale, color=CONFIG['colors']['co'],
-                linestyle=CONFIG['plot']['limit_line_style'], linewidth=CONFIG['plot']['limit_line_width'],
-                label=CONFIG['labels']['co_limit'])
-    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
-
-    # Set the ranges for both y axes
-    tmin, tmax = CONFIG['axis_ranges']['tvoc']
-    cmin, cmax = CONFIG['axis_ranges']['co_form']
-    ax1.set_ylim(tmin, tmax)
-    ax2.set_ylim(cmin, cmax)
-
-    # Add a grid for the x axis and the y axes
-    # This is already done if using the whitegrid theme
-    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
-    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
-
-    # Customize the plot title, labels and ticks
-    ax1.set_title(get_plot_title(title, filename))
-    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
-    ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['tvoc'])
-    ax1.set_xlabel('')
-    ax1.set_ylabel(CONFIG['labels']['tvoc'], color=CONFIG['colors']['tvoc'])
-    ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
-
-    # Define the position for the center of the right y axis label
-    bottom_label = CONFIG['labels']['co'] + '  '
-    top_label = '  ' + CONFIG['labels']['form']
-    x = 1.07  # Slightly to the right of the axis
-    y = get_label_center(bottom_label, top_label)   # Vertically centered
-
-    # Place the first (bottom) part of the label
-    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
-             color=CONFIG['colors']['co'], rotation='vertical',
-             ha='center', va='top')
-
-    # Place the second (top) part of the label
-    ax2.text(x, y, top_label, transform=ax2.transAxes,
-             color=CONFIG['colors']['form'], rotation='vertical',
-             ha='center', va='bottom')
-
-    # Create a combined legend
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2,
-               loc=CONFIG['plot']['legend_location'])
-
-    # Adjust the plot margins to make room for the labels
-    plt.tight_layout()
-
-    # Save the plot as a PNG image
-    plt.savefig(get_plot_filename(filename, '-vcf'))
     plt.close()
 
 
