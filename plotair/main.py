@@ -156,7 +156,24 @@ def main():
                                      y_range=CONFIG['axis_ranges']['temp_h'],
                                      limit=None)
                     generate_plot(df, filename, args.title, 'cht', ds1, ds2, ds3)
-                    #generate_plot_pm(df, filename, args.title)
+
+                    ds2 = DataSeries(name='pm2.5',
+                                     label=CONFIG['labels']['pm2.5'],
+                                     color=CONFIG['colors']['pm2.5'],
+                                     y_range=CONFIG['axis_ranges']['pm2.5_10'],
+                                     limit=CONFIG['limits']['pm2.5'],
+                                     limit_label=CONFIG['labels']['pm2.5_limit'],
+                                     linewidth=CONFIG['plot']['pm2.5_line_width'],
+                                     linestyle=CONFIG['plot']['pm2.5_line_style'])
+                    ds3 = DataSeries(name='pm10',
+                                     label=CONFIG['labels']['pm10'],
+                                     color=CONFIG['colors']['pm10'],
+                                     y_range=CONFIG['axis_ranges']['pm2.5_10'],
+                                     limit=CONFIG['limits']['pm10'],
+                                     limit_label=CONFIG['labels']['pm10_limit'],
+                                     linewidth=CONFIG['plot']['pm10_line_width'],
+                                     linestyle=CONFIG['plot']['pm10_line_style'])
+                    generate_plot(df, filename, args.title, 'pm', ds1=None, ds2=ds2, ds3=ds3)
                 elif file_format == 'graywolf_ds':
                     ds2 = DataSeries(name='humidity',
                                      label=CONFIG['labels']['humidity'],
@@ -366,13 +383,16 @@ def delete_old_data(df, start_date = None, stop_date = None):
     
 
 class DataSeries:
-    def __init__(self, name='', label='', color='tab:blue', y_range=None, limit=None):
+    def __init__(self, name='', label='', color='tab:blue', y_range=None, limit=None, limit_label=None, linewidth=None, linestyle=None):
         # y_range could be replaced by y_min and y_max
         self.name = name
         self.label = label
         self.color = color
         self.y_range = y_range  # min/max tuple, e.g. (0, 100)
         self.limit = limit      # single value or min/max tuple
+        self.limit_label = limit_label
+        self.linewidth = linewidth
+        self.linestyle = linestyle
 
 
 def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
@@ -389,15 +409,68 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
     ax2 = ax1.twinx()  # Secondary y axis
 
-    # Plot the data series
+    # Plot series #1 main line
     if ds1:
         sns.lineplot(data=df, x='date', y=ds1.name, ax=ax1, color=ds1.color,
                      label=ds1.label, legend=False)
 
+    # Plot series #2 main line
+    if ds2.linewidth:
+        linewidth = ds2.linewidth
+    else:
+        linewidth = CONFIG['plot']['default_line_width']
+
+    if ds2.linestyle:
+        linestyle = ds2.linestyle
+    else:
+        linestyle = CONFIG['plot']['default_line_style']
+
     sns.lineplot(data=df, x='date', y=ds2.name, ax=ax2, color=ds2.color,
-                 label=ds2.label, legend=False)
+                 label=ds2.label, legend=False,
+                 linewidth=linewidth, linestyle=linestyle)
+
+    # Display series #2 limit line or zone
+    if ds2.limit and not isinstance(ds2.limit, list):
+        # Plot the limit line
+        line = ax2.axhline(y=ds2.limit, color=ds2.color, label=ds2.limit_label,
+                           linewidth=CONFIG['plot']['limit_line_width'],
+                           linestyle=CONFIG['plot']['limit_line_style'])
+        line.set_alpha(CONFIG['plot']['limit_line_opacity'])
+
+    if ds2.limit and isinstance(ds2.limit, list):
+        # Set the background color of the limit zone
+        hmin, hmax = ds2.limit
+        ax2.axhspan(ymin=hmin, ymax=hmax, facecolor=ds2.color,
+                    alpha=CONFIG['plot']['limit_zone_opacity'])
+
+    # Plot series #3 main line
+    if ds3.linewidth:
+        linewidth = ds3.linewidth
+    else:
+        linewidth = CONFIG['plot']['default_line_width']
+
+    if ds3.linestyle:
+        linestyle = ds3.linestyle
+    else:
+        linestyle = CONFIG['plot']['default_line_style']
+
     sns.lineplot(data=df, x='date', y=ds3.name, ax=ax2, color=ds3.color,
-                 label=ds3.label, legend=False)
+                 label=ds3.label, legend=False,
+                 linewidth=linewidth, linestyle=linestyle)
+
+    # Plot series #3 limit line
+    if ds3.limit and not isinstance(ds3.limit, list):
+        # Plot the limit line
+        line = ax2.axhline(y=ds3.limit, color=ds3.color, label=ds3.limit_label,
+                           linewidth=CONFIG['plot']['limit_line_width'],
+                           linestyle=CONFIG['plot']['limit_line_style'])
+        line.set_alpha(CONFIG['plot']['limit_line_opacity'])
+
+    if ds3.limit and isinstance(ds3.limit, list):
+        # Set the background color of the limit zone
+        hmin, hmax = ds3.limit
+        ax2.axhspan(ymin=hmin, ymax=hmax, facecolor=ds3.color,
+                    alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Set the ranges for both y axes
     if ds1:
@@ -412,13 +485,6 @@ def generate_plot(df, filename, title, suffix, ds1=None, ds2=None, ds3=None):
     #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
     #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
     ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid2_line_style'])
-
-    # TODO: if the limit is a tuple, display a background range
-    #       if the limit is a single value, display a line
-    # Set the background color of the humidity comfort zone
-    hmin, hmax = ds2.limit
-    ax2.axhspan(ymin=hmin, ymax=hmax,
-                facecolor=ds2.color, alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Customize the plot title, labels and ticks
     ax1.set_title(get_plot_title(title, filename))
@@ -560,108 +626,6 @@ def generate_plot_voc_co_form(df, filename, title):
 
     # Save the plot as a PNG image
     plt.savefig(get_plot_filename(filename, '-vcf'))
-    plt.close()
-
-
-def generate_plot_pm(df, filename, title):
-    # The dates must be in a non-index column
-    df = df.reset_index()
-
-    # Set a theme and scale all fonts
-    sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
-
-    ff = CONFIG['plot']['font_family']
-    if ff != '': plt.rcParams['font.family'] = ff
-
-    # Set up the matplotlib figure and axes
-    fig, ax1 = plt.subplots(figsize=CONFIG['plot']['size'])
-    ax2 = ax1.twinx()  # Secondary y axis
-
-    #sns.lineplot(data=df, x='date', y='pm0.1', ax=ax1, color=CONFIG['colors']['pm0.1'],
-    #             label=CONFIG['labels']['pm0.1'], legend=False)
-
-    # Plot the PM2.5 main line
-    sns.lineplot(data=df, x='date', y='pm2.5', ax=ax2, legend=False,
-                 color=CONFIG['colors']['pm2.5'],
-                 label=CONFIG['labels']['pm2.5'],
-                 linewidth=CONFIG['plot']['pm2.5_line_width'],
-                 linestyle=CONFIG['plot']['pm2.5_line_style'])
-
-    # Plot the PM2.5 limit line
-    line = ax2.axhline(y=CONFIG['limits']['pm2.5'],
-                 color=CONFIG['colors']['pm2.5'],
-                 label=CONFIG['labels']['pm2.5_limit'],
-                 linewidth=CONFIG['plot']['limit_line_width'],
-                 linestyle=CONFIG['plot']['limit_line_style'])
-    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
-
-    # Plot the PM10 main line
-    sns.lineplot(data=df, x='date', y='pm10', ax=ax2, legend=False,
-                 color=CONFIG['colors']['pm10'],
-                 label=CONFIG['labels']['pm10'],
-                 linewidth=CONFIG['plot']['pm10_line_width'],
-                 linestyle=CONFIG['plot']['pm10_line_style'])
-
-    # Plot the PM10 limit line
-    line = ax2.axhline(y=CONFIG['limits']['pm10'],
-                 color=CONFIG['colors']['pm10'],
-                 label=CONFIG['labels']['pm10_limit'],
-                 linewidth=CONFIG['plot']['limit_line_width'],
-                 linestyle=CONFIG['plot']['limit_line_style'])
-    line.set_alpha(CONFIG['plot']['limit_line_opacity'])
-
-    # Set the ranges for both y axes
-    #min1, max1 = CONFIG['axis_ranges']['pm0.1']
-    min2, max2 = CONFIG['axis_ranges']['pm2.5_10']
-    #ax1.set_ylim(min1, max1)  # df['co2'].max() * 1.05
-    ax2.set_ylim(min2, max2)
-
-    # Add a grid for the x axis and the y axes
-    # This is already done if using the whitegrid theme
-    #ax1.grid(axis='x', alpha=CONFIG['plot']['grid_opacity'])
-    #ax1.grid(axis='y', alpha=CONFIG['plot']['grid_opacity'])
-    ax2.grid(axis='y', alpha=CONFIG['plot']['grid2_opacity'], linestyle=CONFIG['plot']['grid1_line_style'])
-
-    # Customize the plot title, labels and ticks
-    ax1.set_title(get_plot_title(title, filename))
-    ax1.tick_params(axis='x', rotation=CONFIG['plot']['date_rotation'])
-    #ax1.tick_params(axis='y', labelcolor=CONFIG['colors']['pm0.1'])
-    ax1.set_xlabel('')
-    #ax1.set_ylabel(CONFIG['labels']['pm0.1'], color=CONFIG['colors']['pm0.1'])
-    ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
-
-    # Define the position for the center of the right y axis label
-    bottom_label = CONFIG['labels']['pm2.5'] + '  '
-    top_label = '  ' + CONFIG['labels']['pm10']
-    x = 1.07  # Slightly to the right of the axis
-    y = get_label_center(bottom_label, top_label)   # Vertically centered
-
-    # Place the first (bottom) part of the label
-    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
-             color=CONFIG['colors']['pm2.5'], rotation='vertical',
-             ha='center', va='top')
-
-    # Place the second (top) part of the label
-    ax2.text(x, y, top_label, transform=ax2.transAxes,
-            color=CONFIG['colors']['pm10'], rotation='vertical',
-            ha='center', va='bottom')
-
-    # Create a combined legend
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2,
-               loc=CONFIG['plot']['legend_location'])
-
-    # Remove the left y-axis elements from ax1
-    ax1.grid(axis='y', visible=False)
-    ax1.spines['left'].set_visible(False)
-    ax1.tick_params(axis='y', left=False, labelleft=False)
-
-    # Adjust the plot margins to make room for the labels
-    plt.tight_layout()
-
-    # Save the plot as a PNG image
-    plt.savefig(get_plot_filename(filename, '-pm'))
     plt.close()
 
 
