@@ -358,7 +358,6 @@ class DataSeries:
         self.y_range = CONFIG['axis_ranges'].get(self.name)  # min/max tuple, e.g. (0, 100)
         self.limit = CONFIG['limits'].get(self.name)  # single value or min/max tuple
         self.limit_label = CONFIG['labels'].get(self.name + '_limit')
-        self.linewidth = CONFIG['plot'].get(self.name + '_line_width')
         self.linestyle = CONFIG['plot'].get(self.name + '_line_style')
 
 
@@ -387,11 +386,6 @@ def generate_plot(df, filename, title, suffix='',
 
     # Plot series #1 main line
     if ds1:
-        if ds1.linewidth:
-            linewidth = ds1.linewidth
-        else:
-            linewidth = CONFIG['plot']['default_line_width']
-
         if ds1.linestyle:
             linestyle = ds1.linestyle
         else:
@@ -400,17 +394,15 @@ def generate_plot(df, filename, title, suffix='',
         if filter_outliers:
             df1 = remove_outliers_iqr(df, ds1.name, multiplier=filter_multiplier)
         else:
-            df1 = df
+            df1 = df[df[ds1.name] != 0]  # Only filter out zero values
 
         sns.lineplot(data=df1, x='date', y=ds1.name, ax=ax1, color=ds1.color,
-                     label=ds1.label, legend=False,
-                     linewidth=linewidth, linestyle=linestyle)
+                     label=ds1.label, legend=False, linestyle=linestyle)
 
         # Display series #1 limit line or zone
         if ds1.limit and not isinstance(ds1.limit, list):
             # Plot the limit line
             line = ax1.axhline(y=ds1.limit, color=ds1.color, label=ds1.limit_label,
-                               linewidth=CONFIG['plot']['limit_line_width'],
                                linestyle=CONFIG['plot']['limit_line_style'])
             line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
@@ -421,11 +413,6 @@ def generate_plot(df, filename, title, suffix='',
                         alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Plot series #2 main line
-    if ds2.linewidth:
-        linewidth = ds2.linewidth
-    else:
-        linewidth = CONFIG['plot']['default_line_width']
-
     if ds2.linestyle:
         linestyle = ds2.linestyle
     else:
@@ -434,17 +421,15 @@ def generate_plot(df, filename, title, suffix='',
     if filter_outliers:
         df2 = remove_outliers_iqr(df, ds2.name, multiplier=filter_multiplier)
     else:
-        df2 = df
+        df2 = df[df[ds2.name] != 0]  # Only filter out zero values
 
     sns.lineplot(data=df2, x='date', y=ds2.name, ax=ax2, color=ds2.color,
-                 label=ds2.label, legend=False,
-                 linewidth=linewidth, linestyle=linestyle)
+                 label=ds2.label, legend=False, linestyle=linestyle)
 
     # Display series #2 limit line or zone
     if ds2.limit and not isinstance(ds2.limit, list):
         # Plot the limit line
         line = ax2.axhline(y=ds2.limit, color=ds2.color, label=ds2.limit_label,
-                           linewidth=CONFIG['plot']['limit_line_width'],
                            linestyle=CONFIG['plot']['limit_line_style'])
         line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
@@ -455,11 +440,6 @@ def generate_plot(df, filename, title, suffix='',
                     alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Plot series #3 main line
-    if ds3.linewidth:
-        linewidth = ds3.linewidth
-    else:
-        linewidth = CONFIG['plot']['default_line_width']
-
     if ds3.linestyle:
         linestyle = ds3.linestyle
     else:
@@ -472,17 +452,15 @@ def generate_plot(df, filename, title, suffix='',
     if filter_outliers:
         df3 = remove_outliers_iqr(df, ds3.name, multiplier=filter_multiplier)
     else:
-        df3 = df
+        df3 = df[df[ds3.name] != 0]  # Only filter out zero values
 
     sns.lineplot(data=df3, x='date', y=ds3.name, ax=ax2, color=ds3.color,
-                 label=ds3.label, legend=False,
-                 linewidth=linewidth, linestyle=linestyle)
+                 label=ds3.label, legend=False, linestyle=linestyle)
 
     # Plot series #3 limit line
     if ds3.limit and not isinstance(ds3.limit, list):
         # Plot the limit line
         line = ax2.axhline(y=ds3.limit, color=ds3.color, label=ds3.limit_label,
-                           linewidth=CONFIG['plot']['limit_line_width'],
                            linestyle=CONFIG['plot']['limit_line_style'])
         line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
@@ -539,6 +517,8 @@ def generate_plot(df, filename, title, suffix='',
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
+    labels1 = remove_units_from_labels(labels1)
+    labels2 = remove_units_from_labels(labels2)
     ax1.legend(lines1 + lines2, labels1 + labels2,
                loc=CONFIG['plot']['legend_location'])
 
@@ -555,6 +535,10 @@ def generate_plot(df, filename, title, suffix='',
     # TODO: auto build the plot suffix from the 1st char of each series?
     plt.savefig(get_plot_filename(filename, f'-{suffix}'))
     plt.close()
+
+
+def remove_units_from_labels(labels):
+    return [re.sub(r' \([^)]*\)', '', label) for label in labels]
 
 
 def remove_outliers_iqr(df, column, multiplier=None):
