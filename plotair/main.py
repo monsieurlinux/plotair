@@ -85,7 +85,7 @@ def main():
         num_files = len(args.filenames)
 
         if num_files != 3:
-            print('Error: argument -m/--merge requires three file arguments')
+            print('Error: Argument -m/--merge requires three file arguments')
             return
 
         file_format, df1, num_valid_rows1, num_invalid_rows = read_data(args.filenames[0])
@@ -494,12 +494,16 @@ def generate_plot(df, filename, title, suffix='',
 
     # Set the ranges for both y axes
     if ds1:
-        cmin, cmax = ds1.y_range  # TODO: can we feed this directly to set_ylim()?
-        ax1.set_ylim(cmin, cmax)  # df['co2'].max() * 1.05
+        y1min, y1max = ds1.y_range
+        ax1.set_ylim(y1min, y1max)
 
-    # TODO: Compare values for ds2 and ds3
-    tmin, tmax = ds2.y_range
-    ax2.set_ylim(tmin, tmax)
+    y2min, y2max = ds2.y_range
+    y3min, y3max = ds3.y_range
+
+    if y2min != y3min or y2max != y3max:
+        print(f'Warning: Axis ranges differ for {series2} and {series3}, using largest range')
+
+    ax2.set_ylim(min(y2min, y3min), max(y2max, y3max))
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
