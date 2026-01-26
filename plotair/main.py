@@ -77,7 +77,7 @@ def main():
     try:
         load_config(args.reset_config)
     except FileNotFoundError as e:
-        logger.error(f'Failed to load config: {e}')
+        print(f'Error: Failed to load config: {e}')
         return
 
     if args.merge:
@@ -85,14 +85,14 @@ def main():
         num_files = len(args.filenames)
 
         if num_files != 3:
-            logger.error('argument -m/--merge requires three file arguments')
+            print('Error: argument -m/--merge requires three file arguments')
             return
 
         file_format, df1, num_valid_rows1, num_invalid_rows = read_data(args.filenames[0])
         file_format, df2, num_valid_rows2, num_invalid_rows = read_data(args.filenames[1])
 
         if num_valid_rows1 <= 0 or num_valid_rows2 <= 0:
-            logger.error('At least one of the input files is unsupported')
+            print('Error: At least one of the input files is unsupported')
             return
 
         temp_df = df1[['co2']]
@@ -107,19 +107,19 @@ def main():
             all_files.extend(glob.glob(pattern))
 
         for filename in all_files:
-            logger.info(f'Processing {filename}')
+            print(f'Processing {filename}')
             try:
                 file_format, df, num_valid_rows, num_invalid_rows = read_data(filename)
 
                 if num_valid_rows > 0:
                     logger.debug(f'{num_valid_rows} valid row(s) read')
                 else:
-                    logger.error('Unsupported file format')
+                    print('Error: Unsupported file format')
                     return
 
                 if num_invalid_rows > 0:
                     percent_ignored = round(num_invalid_rows / (num_valid_rows + num_invalid_rows) * 100)
-                    logger.info(f'{num_invalid_rows} invalid row(s) ignored ({percent_ignored}%)')
+                    print(f'{num_invalid_rows} invalid row(s) ignored ({percent_ignored}%)')
 
                 if not args.all_dates:
                     df = delete_old_data(df, args.start_date, args.stop_date)
@@ -155,7 +155,7 @@ def main():
                              filter_outliers=args.filter_outliers,
                              filter_multiplier=args.filter_multiplier)
             except Exception as e:
-                logger.exception(f'Unexpected error: {e}')
+                print(f'Error: Unexpected error: {e}')
 
 
 def detect_file_format(filename):
