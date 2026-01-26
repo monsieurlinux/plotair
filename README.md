@@ -2,20 +2,23 @@
 
 # PlotAir
 
-PlotAir is a Python script that processes one or more CSV files containing [VisiblAir](https://visiblair.com/) sensor data. For each file, it reads the data into a [pandas](https://github.com/pandas-dev/pandas) DataFrame, ignores incorrectly formatted lines, keeps only the most recent data sequence, and generates a [Seaborn](https://github.com/mwaskom/seaborn) plot saved as a PNG file with the same base name as the input CSV.
+[![PyPI][pypi-badge]][pypi-link]
+[![License][license-badge]][license-link]
+
+PlotAir is a Python script that processes one or more CSV files containing [VisiblAir][visiblair-link] sensor data. For each file, it reads the data into a [pandas][pandas-link] DataFrame, ignores incorrectly formatted lines, keeps only the most recent data sequence, and generates a [Seaborn][seaborn-link] plot saved as a PNG file with the same base name as the input CSV.
 
 ## Dependencies
 
 PlotAir requires the following external libraries:
 
-* **[pandas](https://github.com/pandas-dev/pandas)**: Used for data manipulation and analysis.
-* **[seaborn](https://github.com/mwaskom/seaborn)**: Used for creating plots.
+* **[pandas][pandas-link]**: Used for data manipulation and analysis.
+* **[seaborn][seaborn-link]**: Used for creating plots.
 
 These libraries and their sub-dependencies will be installed automatically when you install PlotAir.
 
 ## Installation
 
-It is recommended to install PlotAir within a [virtual environment](https://docs.python.org/3/tutorial/venv.html) to avoid conflicts with system packages. Some Linux distributions enforce this. You can use `pipx` to handle the virtual environment automatically, or create one manually and use `pip`.
+It is recommended to install PlotAir within a [virtual environment][venv-link] to avoid conflicts with system packages. Some Linux distributions enforce this. You can use `pipx` to handle the virtual environment automatically, or create one manually and use `pip`.
 
 ### Installation with `pipx`
 
@@ -52,11 +55,18 @@ pipx install plotair
 
 ### Installation with `pip`
 
-If you prefer to manage the virtual environment manually, you can create and activate it by following this [tutorial](https://docs.python.org/3/tutorial/venv.html). Then install PlotAir:
+If you prefer to manage the virtual environment manually, you can create and activate it by following this [tutorial][venv-link]. Then install PlotAir:
 
 ```bash
 pip install plotair
 ```
+
+## Deployments
+
+View all releases on:
+
+- **[PyPI Releases][pypi-releases]**
+- **[GitHub Releases][github-releases]**
 
 ## Usage
 
@@ -78,7 +88,7 @@ When you run PlotAir for the first time, a `config.toml` file is automatically c
 *   **macOS:** `~/Library/Preferences/plotair`
 *   **Windows:** `C:/Users/YourUsername/AppData/Roaming/plotair`
 
-You can edit this file to customize various plotting settings. Common customizations include translating plot labels into different languages or modifying the line colors.
+You can edit this file to customize various settings. Common customizations include translating plot labels into different languages or modifying the line colors.
 
 ## License
 
@@ -88,4 +98,16 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Acknowledgements
 
-Thanks to the creators and contributors of the [pandas](https://github.com/pandas-dev/pandas) and [seaborn](https://github.com/mwaskom/seaborn) libraries, and to the developer of the great [VisiblAir](https://visiblair.com/) air quality monitors and CO₂ sensors. Thanks also to the founder of [Bâtiments vivants](https://batimentsvivants.ca/) for the idea of this script.
+Thanks to the creators and contributors of the [pandas][pandas-link] and [seaborn][seaborn-link] libraries, and to the developer of the great [VisiblAir][visiblair-link] air quality monitors and CO₂ sensors. Thanks also to the founder of [Bâtiments vivants][batiments-link] for the idea of this script.
+
+[batiments-link]: https://batimentsvivants.ca/
+[github-releases]: https://github.com/monsieurlinux/plotair/releases
+[license-badge]: https://img.shields.io/pypi/l/plotair.svg
+[license-link]: https://github.com/monsieurlinux/plotair/blob/main/LICENSE
+[pandas-link]: https://github.com/pandas-dev/pandas
+[pypi-badge]: https://img.shields.io/pypi/v/plotair.svg
+[pypi-link]: https://pypi.org/project/plotair/
+[pypi-releases]: https://pypi.org/project/plotair/#history
+[seaborn-link]: https://github.com/mwaskom/seaborn
+[venv-link]: https://docs.python.org/3/tutorial/venv.html
+[visiblair-link]: https://visiblair.com/
