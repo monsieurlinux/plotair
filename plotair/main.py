@@ -100,13 +100,17 @@ def main():
         df2.to_csv(args.filenames[2], index=True)
 
     else:
-        # Create a list containing all files from all patterns like '*.csv',
-        # because under Windows the terminal doesn't expand wildcard arguments.
-        all_files = []
-        for pattern in args.filenames:
-            all_files.extend(glob.glob(pattern))
+        filenames = []
 
-        for filename in all_files:
+        if sys.platform == "win32":
+            # On Windows, expand glob patterns (e.g. *.csv)
+            for pattern in args.filenames:
+                filenames.extend(glob.glob(pattern))
+        else:
+            # On Linux, use filenames as-is (no glob expansion needed)
+            filenames = args.filenames
+
+        for filename in filenames:
             print(f'Processing {filename}')
             try:
                 file_format, df, num_valid_rows, num_invalid_rows = read_data(filename)
