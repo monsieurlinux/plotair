@@ -207,6 +207,8 @@ def read_data(filename):
     elif file_format == 'graywolf_ds':
         df, num_valid_rows, num_invalid_rows = read_data_graywolf_ds(filename)
 
+    df = df.sort_index()  # Sort in case some dates are not in order
+
     return file_format, df, num_valid_rows, num_invalid_rows
 
 
@@ -221,7 +223,6 @@ def read_data_plotair(filename):
     df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d %H:%M:%S')
 
     df = df.set_index('date')
-    df = df.sort_index()  # Sort in case some dates are not in order
     num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
@@ -266,7 +267,6 @@ def read_data_visiblair_d(filename):
         # Create the DataFrame from the valid rows
         df = pd.DataFrame(valid_rows)
         df = df.set_index('date')
-        df = df.sort_index()  # Sort in case some dates are not in order
         num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
@@ -289,7 +289,6 @@ def read_data_visiblair_e(filename):
     df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d %H:%M:%S')
 
     df = df.set_index('date')
-    df = df.sort_index()  # Sort in case some dates are not in order
     num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
@@ -309,10 +308,9 @@ def read_data_graywolf_ds(filename):
     df['date'] = pd.to_datetime(df['date'], format='%d-%b-%y %I:%M:%S %p')
 
     # Convert 'form' column to string, replace '< LOD' with '0', and then convert to integer
-    df['form'] = df['form'].astype(str).str.replace('< LOD', '0').astype(int)
+    df['form'] = df['form'].astype(str).str.replace('< LOD', '10').astype(int)
 
     df = df.set_index('date')
-    df = df.sort_index()  # Sort in case some dates are not in order
     num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
