@@ -45,7 +45,7 @@ It is recommended to install PlotAir within a [virtual environment][venv-link] t
     python -m pipx ensurepath
     ```
 
-You may need to close and restart your terminal for the PATH changes to take effect.
+You may need to reopen your terminal for the PATH changes to take effect. If you encounter a problem, please refer to the official [pipx documentation][pipx-link].
 
 **2. Install PlotAir:**
 
@@ -105,6 +105,7 @@ Thanks to the creators and contributors of the [pandas][pandas-link] and [seabor
 [license-badge]: https://img.shields.io/pypi/l/plotair.svg
 [license-link]: https://github.com/monsieurlinux/plotair/blob/main/LICENSE
 [pandas-link]: https://github.com/pandas-dev/pandas
+[pipx-link]: https://github.com/pypa/pipx
 [pypi-badge]: https://img.shields.io/pypi/v/plotair.svg
 [pypi-link]: https://pypi.org/project/plotair/
 [pypi-releases]: https://pypi.org/project/plotair/#history
