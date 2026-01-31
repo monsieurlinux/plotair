@@ -71,6 +71,8 @@ def main():
                         help='set the plot title')
     parser.add_argument('-v', '--version', action='version', 
                         version=f'%(prog)s {__version__}')
+    parser.add_argument('--snapshots', action='store_true',
+                        help='generate a snapshots table from all files')
 
     args = parser.parse_args()
 
@@ -80,16 +82,26 @@ def main():
         print(f'Error: Failed to load configuration file: {e}')
         return
 
+    filenames = []
+
+    if sys.platform == "win32":
+        # On Windows, expand glob patterns (e.g. *.csv)
+        for pattern in args.filenames:
+            filenames.extend(glob.glob(pattern))
+    else:
+        # On Linux, use filenames as-is (no glob expansion needed)
+        filenames = args.filenames
+
     if args.merge:
         field = args.merge
-        num_files = len(args.filenames)
+        num_files = len(filenames)
 
         if num_files != 3:
             print('Error: Argument -m/--merge requires three file arguments')
             return
 
-        file_format, df1, num_valid_rows1, num_invalid_rows = read_data(args.filenames[0])
-        file_format, df2, num_valid_rows2, num_invalid_rows = read_data(args.filenames[1])
+        file_format, df1, num_valid_rows1, num_invalid_rows = read_data(filenames[0])
+        file_format, df2, num_valid_rows2, num_invalid_rows = read_data(filenames[1])
 
         if num_valid_rows1 <= 0 or num_valid_rows2 <= 0:
             print('Error: At least one of the input files is unsupported')
@@ -97,19 +109,34 @@ def main():
 
         temp_df = df1[['co2']]
         df2 = pd.concat([df2, temp_df]).sort_index()
-        df2.to_csv(args.filenames[2], index=True)
+        df2.to_csv(filenames[2], index=True)
+
+    elif args.snapshots:
+        columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temp', 'filename']
+        df_all = pd.DataFrame()
+
+        for filename in filenames:
+            print(f'Reading {filename}')
+
+            # Read the CSV file into a DataFrame (auto-detect field separator)
+            df = pd.read_csv(filename, sep=None, engine='python', skiprows=1, names=columns)
+
+            # Update the filename field with the actual filename
+            df['filename'] = Path(filename).stem
+
+            # Append to the combined DataFrame
+            if df_all.empty:
+                # Prevent a warning on the first concat
+                df_all = df
+            else:
+                df_all = pd.concat([df_all, df], ignore_index=True)
+
+        # Convert 'form' column to string, and replace '< LOD' with '<10'
+        df_all['form'] = df_all['form'].astype(str).str.replace('< LOD', '<10')
+
+        log_data_frame(df_all, filename)
 
     else:
-        filenames = []
-
-        if sys.platform == "win32":
-            # On Windows, expand glob patterns (e.g. *.csv)
-            for pattern in args.filenames:
-                filenames.extend(glob.glob(pattern))
-        else:
-            # On Linux, use filenames as-is (no glob expansion needed)
-            filenames = args.filenames
-
         for filename in filenames:
             print(f'Processing {filename}')
             try:
@@ -311,7 +338,8 @@ def read_data_graywolf_ds(filename):
     # Convert the 'date' column to pandas datetime objects
     df['date'] = pd.to_datetime(df['date'], format='%d-%b-%y %I:%M:%S %p')
 
-    # Convert 'form' column to string, replace '< LOD' with '0', and then convert to integer
+    # Convert 'form' column to string, replace '< LOD' with '10',
+    # and then convert to integer
     df['form'] = df['form'].astype(str).str.replace('< LOD', '10').astype(int)
 
     df = df.set_index('date')
@@ -700,7 +728,7 @@ def log_data_frame(df, description = ''):
     #logger.debug(f'DataFrame index class: {type(df.index)}')
     #logger.debug(f'DataFrame columns data types\n{df.dtypes}')
     #logger.debug(f'DataFrame statistics\n{df.describe()}')  # Mean, min, max...
-    #sys.exit()
+    sys.exit()
 
 
 if __name__ == '__main__':
