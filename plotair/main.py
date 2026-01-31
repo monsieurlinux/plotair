@@ -77,7 +77,7 @@ def main():
     try:
         load_config(args.reset_config)
     except FileNotFoundError as e:
-        print(f'Error: Failed to load config: {e}')
+        print(f'Error: Failed to load configuration file: {e}')
         return
 
     if args.merge:
@@ -154,8 +154,12 @@ def main():
                              series1=None, series2='humidity', series3='temp',
                              filter_outliers=args.filter_outliers,
                              filter_multiplier=args.filter_multiplier)
-                    generate_plot(df, filename, args.title, suffix='vcf',
-                             series1='tvoc', series2='form', series3='co',
+                    generate_plot(df, filename, args.title, suffix='vf',
+                             series1='tvoc', series2='form', series3=None,
+                             filter_outliers=args.filter_outliers,
+                             filter_multiplier=args.filter_multiplier)
+                    generate_plot(df, filename, args.title, suffix='co',
+                             series1=None, series2='co', series3=None,
                              filter_outliers=args.filter_outliers,
                              filter_multiplier=args.filter_multiplier)
             except Exception as e:
@@ -386,7 +390,7 @@ def generate_plot(df, filename, title, suffix='',
 
     # TODO: add functions for repetitive code
 
-    # Plot series #1 main line
+    # Plot series #1 main line (on left y-axis)
     if ds1:
         if ds1.linestyle:
             linestyle = ds1.linestyle
@@ -414,7 +418,7 @@ def generate_plot(df, filename, title, suffix='',
             ax1.axhspan(ymin=hmin, ymax=hmax, facecolor=ds1.color,
                         alpha=CONFIG['plot']['limit_zone_opacity'])
 
-    # Plot series #2 main line
+    # Plot series #2 main line (on right y-axis)
     if ds2.linestyle:
         linestyle = ds2.linestyle
     else:
@@ -441,36 +445,33 @@ def generate_plot(df, filename, title, suffix='',
         ax2.axhspan(ymin=hmin, ymax=hmax, facecolor=ds2.color,
                     alpha=CONFIG['plot']['limit_zone_opacity'])
 
-    # Plot series #3 main line
-    if ds3.linestyle:
-        linestyle = ds3.linestyle
-    else:
-        linestyle = CONFIG['plot']['default_line_style']
+    # Plot series #3 main line (on right y-axis)
+    if ds3:
+        if ds3.linestyle:
+            linestyle = ds3.linestyle
+        else:
+            linestyle = CONFIG['plot']['default_line_style']
 
-    # TODO: Do we still want to scale the CO data series?
-    #co_scale = 10
-    #df['co_scaled'] = df['co'] * co_scale
+        if filter_outliers:
+            df3 = remove_outliers_iqr(df, ds3.name, multiplier=filter_multiplier)
+        else:
+            df3 = df[df[ds3.name] != 0]  # Only filter out zero values
 
-    if filter_outliers:
-        df3 = remove_outliers_iqr(df, ds3.name, multiplier=filter_multiplier)
-    else:
-        df3 = df[df[ds3.name] != 0]  # Only filter out zero values
+        sns.lineplot(data=df3, x='date', y=ds3.name, ax=ax2, color=ds3.color,
+                     label=ds3.label, legend=False, linestyle=linestyle)
 
-    sns.lineplot(data=df3, x='date', y=ds3.name, ax=ax2, color=ds3.color,
-                 label=ds3.label, legend=False, linestyle=linestyle)
+        # Plot series #3 limit line
+        if ds3.limit and not isinstance(ds3.limit, list):
+            # Plot the limit line
+            line = ax2.axhline(y=ds3.limit, color=ds3.color, label=ds3.limit_label,
+                               linestyle=CONFIG['plot']['limit_line_style'])
+            line.set_alpha(CONFIG['plot']['limit_line_opacity'])
 
-    # Plot series #3 limit line
-    if ds3.limit and not isinstance(ds3.limit, list):
-        # Plot the limit line
-        line = ax2.axhline(y=ds3.limit, color=ds3.color, label=ds3.limit_label,
-                           linestyle=CONFIG['plot']['limit_line_style'])
-        line.set_alpha(CONFIG['plot']['limit_line_opacity'])
-
-    if ds3.limit and isinstance(ds3.limit, list):
-        # Set the background color of the limit zone
-        hmin, hmax = ds3.limit
-        ax2.axhspan(ymin=hmin, ymax=hmax, facecolor=ds3.color,
-                    alpha=CONFIG['plot']['limit_zone_opacity'])
+        if ds3.limit and isinstance(ds3.limit, list):
+            # Set the background color of the limit zone
+            hmin, hmax = ds3.limit
+            ax2.axhspan(ymin=hmin, ymax=hmax, facecolor=ds3.color,
+                        alpha=CONFIG['plot']['limit_zone_opacity'])
 
     # Set the ranges for both y axes
     if ds1:
@@ -478,12 +479,17 @@ def generate_plot(df, filename, title, suffix='',
         ax1.set_ylim(y1min, y1max)
 
     y2min, y2max = ds2.y_range
-    y3min, y3max = ds3.y_range
 
-    if y2min != y3min or y2max != y3max:
-        print(f'Warning: Axis ranges differ for {series2} and {series3}, using largest range')
+    if ds3:
+        y3min, y3max = ds3.y_range
 
-    ax2.set_ylim(min(y2min, y3min), max(y2max, y3max))
+        if y2min != y3min or y2max != y3max:
+            print(f'Warning: Axis ranges differ for {series2} and {series3}, using largest range')
+
+        y2min = min(y2min, y3min)
+        y2max = max(y2max, y3max)
+
+    ax2.set_ylim(y2min, y2max)
 
     # Add a grid for the x axis and the y axes
     # This is already done if using the whitegrid theme
@@ -498,23 +504,28 @@ def generate_plot(df, filename, title, suffix='',
         ax1.tick_params(axis='y', labelcolor=ds1.color)
         ax1.set_ylabel(ds1.label, color=ds1.color)
     ax1.set_xlabel('')
-    ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
-    # Define the position for the center of the right y axis label
-    bottom_label = ds3.label + '  '
-    top_label = '  ' + ds2.label
-    x = 1.07  # Slightly to the right of the axis
-    y = get_label_center(bottom_label, top_label)   # Vertically centered
+    if ds3:
+        ax2.set_ylabel('')  # We will manually place the 2 parts in different colors
 
-    # Place the first (bottom) part of the label
-    ax2.text(x, y, bottom_label, transform=ax2.transAxes,
-             color=ds3.color, rotation='vertical',
-             ha='center', va='top')
+        # Define the position for the center of the right y axis label
+        bottom_label = ds3.label + '  '
+        top_label = '  ' + ds2.label
+        x = 1.07  # Slightly to the right of the axis
+        y = get_label_center(bottom_label, top_label)   # Vertically centered
 
-    # Place the second (top) part of the label
-    ax2.text(x, y, top_label, transform=ax2.transAxes,
-            color=ds2.color, rotation='vertical',
-            ha='center', va='bottom')
+        # Place the first (bottom) part of the label
+        ax2.text(x, y, bottom_label, transform=ax2.transAxes,
+                 color=ds3.color, rotation='vertical',
+                 ha='center', va='top')
+
+        # Place the second (top) part of the label
+        ax2.text(x, y, top_label, transform=ax2.transAxes,
+                color=ds2.color, rotation='vertical',
+                ha='center', va='bottom')
+    else:
+        ax2.tick_params(axis='y', labelcolor=ds2.color)
+        ax2.set_ylabel(ds2.label, color=ds2.color)
 
     # Create a combined legend
     lines1, labels1 = ax1.get_legend_handles_labels()
