@@ -113,28 +113,67 @@ def main():
 
     elif args.snapshots:
         columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temp', 'filename']
-        df_all = pd.DataFrame()
+        df = pd.DataFrame()
 
         for filename in filenames:
             print(f'Reading {filename}')
 
             # Read the CSV file into a DataFrame (auto-detect field separator)
-            df = pd.read_csv(filename, sep=None, engine='python', skiprows=1, names=columns)
+            df_new = pd.read_csv(filename, sep=None, engine='python', skiprows=1, names=columns)
 
             # Update the filename field with the actual filename
-            df['filename'] = Path(filename).stem
+            df_new['filename'] = Path(filename).stem
 
             # Append to the combined DataFrame
-            if df_all.empty:
+            if df.empty:
                 # Prevent a warning on the first concat
-                df_all = df
+                df = df_new
             else:
-                df_all = pd.concat([df_all, df], ignore_index=True)
+                df = pd.concat([df, df_new], ignore_index=True)
 
         # Convert 'form' column to string, and replace '< LOD' with '<10'
-        df_all['form'] = df_all['form'].astype(str).str.replace('< LOD', '<10')
+        df['form'] = df['form'].astype(str).str.replace('< LOD', '<10')
 
-        log_data_frame(df_all, filename)
+        df = df.drop(columns=['date'])
+
+        # Move last column (filename) to first
+        df = df[[df.columns[-1]] + df.columns[:-1].tolist()]
+
+        # Capitalize only the first character of the filenames
+        df['filename'] = df['filename'].str.capitalize()
+
+        # Rename the columns before creating the table
+        # TODO: use config file values instead
+        # TODO: directly assign to `df.columns` to change all column names at once
+        df = df.rename(columns={'filename': 'Pièce'})
+        df = df.rename(columns={'tvoc': 'COVT (ppb)'})
+        df = df.rename(columns={'co': 'Monoxyde de carbone (ppm)'})
+        df = df.rename(columns={'form': 'Formaldéhyde (ppb)'})
+        df = df.rename(columns={'humidity': 'Humidité relative (%)'})
+        df = df.rename(columns={'temp': 'Température (°C)'})
+
+        #log_data_frame(df, filename)
+
+        # Create table
+        # TODO: Seaborn alternative?
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.axis('tight')
+        ax.axis('off')
+        table = ax.table(cellText=df.values,
+                         colLabels=df.columns,
+                         cellLoc='center',
+                         loc='center')
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(2, 2)  # First number affects column width, second affects row height
+
+        # Change first column alignment to left, except for the header
+        for i in range(1, len(df) + 1):
+            table[(i, 0)].set_text_props(ha='left')
+
+        plt.savefig(get_plot_filename(filename, stem='snapshots'),
+                    bbox_inches='tight', dpi=300)
+        plt.close()
 
     else:
         for filename in filenames:
@@ -701,14 +740,15 @@ def get_plot_title(title, filename):
         plot_title = match.group(2) if match else stem
 
     # Capitalize only the first character
-    if plot_title: plot_title = plot_title[0].upper() + plot_title[1:]
+    if plot_title: plot_title = plot_title.capitalize()
 
     return plot_title
 
 
-def get_plot_filename(filename, suffix = ''):
+def get_plot_filename(filename, suffix = '', stem = ''):
     p = Path(filename)
-    return f'{p.parent}/{p.stem}{suffix}.png'
+    s = stem if stem != '' else p.stem
+    return f'{p.parent}/{s}{suffix}.png'
 
 
 def get_boxplot_filename(filename, suffix = ''):
@@ -728,7 +768,7 @@ def log_data_frame(df, description = ''):
     #logger.debug(f'DataFrame index class: {type(df.index)}')
     #logger.debug(f'DataFrame columns data types\n{df.dtypes}')
     #logger.debug(f'DataFrame statistics\n{df.describe()}')  # Mean, min, max...
-    sys.exit()
+    #sys.exit()
 
 
 if __name__ == '__main__':
