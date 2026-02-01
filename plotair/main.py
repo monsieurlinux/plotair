@@ -93,23 +93,7 @@ def main():
         filenames = args.filenames
 
     if args.merge:
-        field = args.merge
-        num_files = len(filenames)
-
-        if num_files != 3:
-            print('Error: Argument -m/--merge requires three file arguments')
-            return
-
-        file_format, df1, num_valid_rows1, num_invalid_rows = read_data(filenames[0])
-        file_format, df2, num_valid_rows2, num_invalid_rows = read_data(filenames[1])
-
-        if num_valid_rows1 <= 0 or num_valid_rows2 <= 0:
-            print('Error: At least one of the input files is unsupported')
-            return
-
-        temp_df = df1[['co2']]
-        df2 = pd.concat([df2, temp_df]).sort_index()
-        df2.to_csv(filenames[2], index=True)
+        merge_field(args.merge, filenames)
 
     elif args.snapshots:
         columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temp', 'filename']
@@ -403,6 +387,25 @@ def read_data_graywolf_ds(filename):
     num_valid_rows = len(df)
 
     return df, num_valid_rows, num_invalid_rows
+
+
+def merge_field(field, filenames):
+    num_files = len(filenames)
+
+    if num_files != 3:
+        print('Error: Argument -m/--merge requires three file arguments')
+        return
+
+    file_format, df1, num_valid_rows1, num_invalid_rows = read_data(filenames[0])
+    file_format, df2, num_valid_rows2, num_invalid_rows = read_data(filenames[1])
+
+    if num_valid_rows1 <= 0 or num_valid_rows2 <= 0:
+        print('Error: At least one of the input files is unsupported')
+        return
+
+    temp_df = df1[[field]]
+    df2 = pd.concat([df2, temp_df]).sort_index()
+    df2.to_csv(filenames[2], index=True)
 
 
 def delete_old_data(df, start_date = None, stop_date = None):
