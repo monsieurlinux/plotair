@@ -147,17 +147,16 @@ def main():
         # TODO: directly assign to `df.columns` to change all column names at once
         df = df.rename(columns={'filename': 'Pièce'})
         df = df.rename(columns={'tvoc': 'COVT (ppb)'})
-        df = df.rename(columns={'co': 'Monoxyde de carbone (ppm)'})
-        df = df.rename(columns={'form': 'Formaldéhyde (ppb)'})
-        df = df.rename(columns={'humidity': 'Humidité relative (%)'})
+        df = df.rename(columns={'co': 'Monoxyde de\ncarbone (ppm)'})
+        df = df.rename(columns={'form': 'Formaldéhyde\n(ppb)'})
+        df = df.rename(columns={'humidity': 'Humidité\nrelative (%)'})
         df = df.rename(columns={'temp': 'Température (°C)'})
 
         #log_data_frame(df, filename)
 
         # Create table
-        # TODO: Seaborn alternative?
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.axis('tight')
+        fig, ax = plt.subplots(figsize=(7, 4))
+        #ax.axis('tight')
         ax.axis('off')
         table = ax.table(cellText=df.values,
                          colLabels=df.columns,
@@ -165,9 +164,21 @@ def main():
                          loc='center')
         table.auto_set_font_size(False)
         table.set_fontsize(10)
-        table.scale(2, 2)  # First number affects column width, second affects row height
+        table.scale(2, 2)  # column width, row height
 
-        # Change first column alignment to left, except for the header
+        # Change grid color to pale gray
+        for i in range(len(df) + 1):  # +1 for header row
+            for j in range(len(df.columns)):
+                #table[(i, j)].set_text_props(fontfamily='Noto Sans')
+                table[(i, j)].set_edgecolor('#bbbbbb')
+
+        # Header row: increase height, make text bold, and add background color
+        for j in range(len(df.columns)):
+            table[(0, j)].set_height(0.15)
+            table[(0, j)].set_text_props(weight='bold')
+            table[(0, j)].set_facecolor('#dddddd')  # Pale gray background
+
+        # First column: change alignment to left, except for the header
         for i in range(1, len(df) + 1):
             table[(i, 0)].set_text_props(ha='left')
 
