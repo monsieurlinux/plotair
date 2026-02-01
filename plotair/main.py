@@ -166,17 +166,24 @@ def main():
         table.set_fontsize(10)
         table.scale(2, 2)  # column width, row height
 
-        # Change grid color to pale gray
+        # Change grid color and set alternating row colors
         for i in range(len(df) + 1):  # +1 for header row
             for j in range(len(df.columns)):
-                #table[(i, j)].set_text_props(fontfamily='Noto Sans')
-                table[(i, j)].set_edgecolor('#bbbbbb')
+                cell = table[(i, j)]
+                #cell.set_text_props(fontfamily='Noto Sans')
+                cell.set_edgecolor('#bbbbbb')      # Medium light gray
+
+                if i % 2 == 0:
+                    cell.set_facecolor('#f4f4f4')  # Very light gray
+                else:
+                    cell.set_facecolor('#ffffff')  # White
 
         # Header row: increase height, make text bold, and add background color
         for j in range(len(df.columns)):
-            table[(0, j)].set_height(0.15)
-            table[(0, j)].set_text_props(weight='bold')
-            table[(0, j)].set_facecolor('#dddddd')  # Pale gray background
+            cell = table[(0, j)]
+            cell.set_height(0.15)
+            cell.set_text_props(weight='bold')
+            cell.set_facecolor('#dddddd')          # Light gray
 
         # First column: change alignment to left, except for the header
         for i in range(1, len(df) + 1):
