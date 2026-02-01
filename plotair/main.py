@@ -69,7 +69,7 @@ def main():
                         help='date at which to stop the plot (YYYY-MM-DD)')
     parser.add_argument('-t', '--title',
                         help='set the plot title')
-    parser.add_argument('-v', '--version', action='version', 
+    parser.add_argument('-v', '--version', action='version',
                         version=f'%(prog)s {__version__}')
     parser.add_argument('--snapshots', action='store_true',
                         help='generate a snapshots table from all files')
@@ -93,66 +93,73 @@ def main():
         filenames = args.filenames
 
     if args.merge:
+        # Merge field from file1 to file2, and output to file3
         merge_field(args.merge, filenames)
 
     elif args.snapshots:
+        # Generate a snapshots table from all files
         generate_snapshots(filenames)
 
     else:
-        for filename in filenames:
-            print(f'Processing {filename}')
-            try:
-                file_format, df, num_valid_rows, num_invalid_rows = read_data(filename)
+        # Generate plots for all files
+        process_files(filenames, args)
 
-                if num_valid_rows > 0:
-                    logger.debug(f'{num_valid_rows} valid row(s) read')
-                else:
-                    print('Error: Unsupported file format')
-                    return
 
-                if num_invalid_rows > 0:
-                    percent_ignored = round(num_invalid_rows / (num_valid_rows + num_invalid_rows) * 100)
-                    print(f'{num_invalid_rows} invalid row(s) ignored ({percent_ignored}%)')
+def process_files(filenames, args):
+    for filename in filenames:
+        print(f'Processing {filename}')
+        try:
+            file_format, df, num_valid_rows, num_invalid_rows = read_data(filename)
 
-                if not args.all_dates:
-                    df = delete_old_data(df, args.start_date, args.stop_date)
+            if num_valid_rows > 0:
+                logger.debug(f'{num_valid_rows} valid row(s) read')
+            else:
+                print('Error: Unsupported file format')
+                return
 
-                generate_stats(df, filename, args.boxplot)
+            if num_invalid_rows > 0:
+                percent_ignored = round(num_invalid_rows / (num_valid_rows + num_invalid_rows) * 100)
+                print(f'{num_invalid_rows} invalid row(s) ignored ({percent_ignored}%)')
 
-                if file_format == 'plotair':
-                    generate_plot(df, filename, args.title, suffix='cht',
-                             series1='co2', series2='humidity', series3='temp',
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-                elif file_format == 'visiblair_d':
-                    generate_plot(df, filename, args.title, suffix='cht',
-                             series1='co2', series2='humidity', series3='temp',
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-                elif file_format == 'visiblair_e':
-                    generate_plot(df, filename, args.title, suffix='cht',
-                             series1='co2', series2='humidity', series3='temp',
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-                    generate_plot(df, filename, args.title, suffix='pm',
-                             series1=None, series2='pm2.5', series3='pm10',
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-                elif file_format == 'graywolf_ds':
-                    generate_plot(df, filename, args.title, suffix='ht',
-                             series1=None, series2='humidity', series3='temp',
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-                    generate_plot(df, filename, args.title, suffix='vf',
-                             series1='tvoc', series2='form', series3=None,
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-                    generate_plot(df, filename, args.title, suffix='co',
-                             series1=None, series2='co', series3=None,
-                             filter_outliers=args.filter_outliers,
-                             filter_multiplier=args.filter_multiplier)
-            except Exception as e:
-                print(f'Error: Unexpected error: {e}')
+            if not args.all_dates:
+                df = delete_old_data(df, args.start_date, args.stop_date)
+
+            generate_stats(df, filename, args.boxplot)
+
+            if file_format == 'plotair':
+                generate_plot(df, filename, args.title, suffix='cht',
+                         series1='co2', series2='humidity', series3='temp',
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+            elif file_format == 'visiblair_d':
+                generate_plot(df, filename, args.title, suffix='cht',
+                         series1='co2', series2='humidity', series3='temp',
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+            elif file_format == 'visiblair_e':
+                generate_plot(df, filename, args.title, suffix='cht',
+                         series1='co2', series2='humidity', series3='temp',
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+                generate_plot(df, filename, args.title, suffix='pm',
+                         series1=None, series2='pm2.5', series3='pm10',
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+            elif file_format == 'graywolf_ds':
+                generate_plot(df, filename, args.title, suffix='ht',
+                         series1=None, series2='humidity', series3='temp',
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+                generate_plot(df, filename, args.title, suffix='vf',
+                         series1='tvoc', series2='form', series3=None,
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+                generate_plot(df, filename, args.title, suffix='co',
+                         series1=None, series2='co', series3=None,
+                         filter_outliers=args.filter_outliers,
+                         filter_multiplier=args.filter_multiplier)
+        except Exception as e:
+            print(f'Error: Unexpected error: {e}')
 
 
 def detect_file_format(filename):
@@ -179,9 +186,9 @@ def detect_file_format(filename):
         elif (graywolf_ds_num_col[0] <= num_fields <= graywolf_ds_num_col[1] and
               first_line[0] == 'Date Time'):
             file_format = 'graywolf_ds'
-        
+
     logger.debug(f'File format: {file_format}')
-    
+
     return file_format
 
 
@@ -233,13 +240,13 @@ def read_data_visiblair_d(filename):
         for line in f:
             line = line.strip()
             fields = line.split(',')
-            
+
             if not (5 <= len(fields) <= 6):
                 # Skip lines with an invalid number of columns
                 #logger.debug(f'Skipping line (number of columns): {line}')
                 num_invalid_rows += 1
                 continue
-                
+
             try:
                 # Convert each field to its target data type
                 parsed_row = {
@@ -250,7 +257,7 @@ def read_data_visiblair_d(filename):
                 }
                 # If conversion succeeds, add the parsed row to the list
                 valid_rows.append(parsed_row)
-                
+
             except (ValueError, TypeError) as e:
                 # Skip lines with conversion errors
                 #logger.debug(f'Skipping line (conversion error): {line}')
@@ -362,7 +369,7 @@ def delete_old_data(df, start_date = None, stop_date = None):
             df = df[df.index <= sd]
 
     return df
-    
+
 
 class DataSeries:
     def __init__(self, name=''):
@@ -381,12 +388,12 @@ def generate_plot(df, filename, title, suffix='',
                   filter_outliers=False, filter_multiplier=None):
     # The dates must be in a non-index column
     df = df.reset_index()
-    
+
     # Get each series configuration
     ds1 = DataSeries(name=series1) if series1 else None
     ds2 = DataSeries(name=series2) if series2 else None
     ds3 = DataSeries(name=series3) if series3 else None
-    
+
     # Set a theme and scale all fonts
     sns.set_theme(style='whitegrid', font_scale=CONFIG['plot']['font_scale'])
 
@@ -566,8 +573,10 @@ def generate_snapshots(filenames):
     for filename in filenames:
         print(f'Reading {filename}')
 
-        # Read the CSV file into a DataFrame (auto-detect field separator)
-        df_new = pd.read_csv(filename, sep=None, engine='python', skiprows=1, names=columns)
+        # Auto-detect field separator, skip the header row,
+        # and only read one data row
+        df_new = pd.read_csv(filename, sep=None, engine='python',
+                             names=columns, skiprows=1, nrows=1)
 
         # Update the filename field with the actual filename
         df_new['filename'] = Path(filename).stem
@@ -582,9 +591,8 @@ def generate_snapshots(filenames):
     # Convert 'form' column to string, and replace '< LOD' with '<10'
     df['form'] = df['form'].astype(str).str.replace('< LOD', '<10')
 
+    # Drop the 'date' column, and move last column (filename) to first
     df = df.drop(columns=['date'])
-
-    # Move last column (filename) to first
     df = df[[df.columns[-1]] + df.columns[:-1].tolist()]
 
     # Capitalize only the first character of the filenames
@@ -650,18 +658,18 @@ def remove_outliers_iqr(df, column, multiplier=None):
     """
     Remove outliers using Interquartile Range (IQR) method
     multiplier = 1.0: Tight bounds, more outliers removed
-    multiplier = 1.5: Standard bounds, moderate outliers removed  
+    multiplier = 1.5: Standard bounds, moderate outliers removed
     multiplier = 2.0: Wide bounds, fewer outliers removed
     """
     if multiplier == None:
         multiplier = 1.5  # Default value
-        
+
     Q1 = df[column].quantile(0.25)
     Q3 = df[column].quantile(0.75)
     IQR = Q3 - Q1
     lower_bound = Q1 - multiplier * IQR
     upper_bound = Q3 + multiplier * IQR
-    
+
     return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
 
 
@@ -678,7 +686,7 @@ def remove_outliers_std(df, column, n_std=2):
     std = df[column].std()
     lower_bound = mean - n_std * std
     upper_bound = mean + n_std * std
-    
+
     return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
 
 
@@ -686,7 +694,7 @@ def remove_outliers_std(df, column, n_std=2):
 def remove_outliers_percentile(df, column, lower_percentile=5, upper_percentile=95):
     lower_bound = df[column].quantile(lower_percentile/100)
     upper_bound = df[column].quantile(upper_percentile/100)
-    
+
     return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
 
 
@@ -749,10 +757,10 @@ def get_config_dir(app_name):
             config_dir = Path(config_home) / app_name
         else:
             config_dir = Path.home() / ".config" / app_name
-    
+
     # Create the directory if it doesn't exist
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     return config_dir
 
 
@@ -800,7 +808,7 @@ if __name__ == '__main__':
     # Configure the root logger
     logging.basicConfig(level=logging.WARNING,
                         format='%(levelname)s - %(message)s')
-    
+
     # Configure this script's logger
     logger.setLevel(logging.DEBUG)
 
