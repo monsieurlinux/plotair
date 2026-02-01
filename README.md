@@ -78,7 +78,20 @@ plotair [arguments] FILE [FILE ...]
 
 ### Command-Line Arguments
 
-None for now.
+| Argument              | Short Flag | Description                                          |
+| --------------------- | ---------- | ---------------------------------------------------- |
+| `--all-dates`         | `-a`       | Plot all dates (otherwise only latest sequence)      |
+| `--boxplot`           | `-b`       | Generate boxplots along with text stats              |
+| `--help`              | `-h`       | Show help message                                    |
+| `--merge`             | `-m`       | Merge field from file1 to file2, and output to file3 |
+| `--filter-multiplier` | `-M`       | Multiplier for IQR outlier filtering (default: 1.5)  |
+| `--filter-outliers`   | `-o`       | Filter out outliers from the plots                   |
+| `--reset-config`      | `-r`       | Reset configuration file to default                  |
+| `--start-date`        | `-s`       | Date at which to start the plot (YYYY-MM-DD)         |
+| `--stop-date`         | `-S`       | Date at which to stop the plot (YYYY-MM-DD)          |
+| `--title`             | `-t`       | Set the plot title                                   |
+| `--snapshots`         | `-T`       | Generate a snapshots table from all files            |
+| `--version`           | `-v`       | Show program's version number and exit               |
 
 ## Configuration
 
