@@ -96,86 +96,7 @@ def main():
         merge_field(args.merge, filenames)
 
     elif args.snapshots:
-        columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temp', 'filename']
-        df = pd.DataFrame()
-
-        for filename in filenames:
-            print(f'Reading {filename}')
-
-            # Read the CSV file into a DataFrame (auto-detect field separator)
-            df_new = pd.read_csv(filename, sep=None, engine='python', skiprows=1, names=columns)
-
-            # Update the filename field with the actual filename
-            df_new['filename'] = Path(filename).stem
-
-            # Append to the combined DataFrame
-            if df.empty:
-                # Prevent a warning on the first concat
-                df = df_new
-            else:
-                df = pd.concat([df, df_new], ignore_index=True)
-
-        # Convert 'form' column to string, and replace '< LOD' with '<10'
-        df['form'] = df['form'].astype(str).str.replace('< LOD', '<10')
-
-        df = df.drop(columns=['date'])
-
-        # Move last column (filename) to first
-        df = df[[df.columns[-1]] + df.columns[:-1].tolist()]
-
-        # Capitalize only the first character of the filenames
-        df['filename'] = df['filename'].str.capitalize()
-
-        # Rename the columns before creating the table
-        # TODO: use config file values instead
-        # TODO: directly assign to `df.columns` to change all column names at once
-        df = df.rename(columns={'filename': 'Pièce'})
-        df = df.rename(columns={'tvoc': 'COVT (ppb)'})
-        df = df.rename(columns={'co': 'Monoxyde de\ncarbone (ppm)'})
-        df = df.rename(columns={'form': 'Formaldéhyde\n(ppb)'})
-        df = df.rename(columns={'humidity': 'Humidité\nrelative (%)'})
-        df = df.rename(columns={'temp': 'Température (°C)'})
-
-        #log_data_frame(df, filename)
-
-        # Create table
-        fig, ax = plt.subplots(figsize=(7, 4))
-        #ax.axis('tight')
-        ax.axis('off')
-        table = ax.table(cellText=df.values,
-                         colLabels=df.columns,
-                         cellLoc='center',
-                         loc='center')
-        table.auto_set_font_size(False)
-        table.set_fontsize(10)
-        table.scale(2, 2)  # column width, row height
-
-        # Change grid color and set alternating row colors
-        for i in range(len(df) + 1):  # +1 for header row
-            for j in range(len(df.columns)):
-                cell = table[(i, j)]
-                #cell.set_text_props(fontfamily='Noto Sans')
-                cell.set_edgecolor('#bbbbbb')      # Medium light gray
-
-                if i % 2 == 0:
-                    cell.set_facecolor('#f4f4f4')  # Very light gray
-                else:
-                    cell.set_facecolor('#ffffff')  # White
-
-        # Header row: increase height, make text bold, and add background color
-        for j in range(len(df.columns)):
-            cell = table[(0, j)]
-            cell.set_height(0.15)
-            cell.set_text_props(weight='bold')
-            cell.set_facecolor('#dddddd')          # Light gray
-
-        # First column: change alignment to left, except for the header
-        for i in range(1, len(df) + 1):
-            table[(i, 0)].set_text_props(ha='left')
-
-        plt.savefig(get_plot_filename(filename, stem='snapshots'),
-                    bbox_inches='tight', dpi=300)
-        plt.close()
+        generate_snapshots(filenames)
 
     else:
         for filename in filenames:
@@ -635,6 +556,89 @@ def generate_plot(df, filename, title, suffix='',
     # Save the plot as a PNG image
     # TODO: auto build the plot suffix from the 1st char of each series?
     plt.savefig(get_plot_filename(filename, f'-{suffix}'))
+    plt.close()
+
+
+def generate_snapshots(filenames):
+    columns = ['date', 'tvoc', 'co', 'form', 'humidity', 'temp', 'filename']
+    df = pd.DataFrame()
+
+    for filename in filenames:
+        print(f'Reading {filename}')
+
+        # Read the CSV file into a DataFrame (auto-detect field separator)
+        df_new = pd.read_csv(filename, sep=None, engine='python', skiprows=1, names=columns)
+
+        # Update the filename field with the actual filename
+        df_new['filename'] = Path(filename).stem
+
+        # Append to the combined DataFrame
+        if df.empty:
+            # Prevent a warning on the first concat
+            df = df_new
+        else:
+            df = pd.concat([df, df_new], ignore_index=True)
+
+    # Convert 'form' column to string, and replace '< LOD' with '<10'
+    df['form'] = df['form'].astype(str).str.replace('< LOD', '<10')
+
+    df = df.drop(columns=['date'])
+
+    # Move last column (filename) to first
+    df = df[[df.columns[-1]] + df.columns[:-1].tolist()]
+
+    # Capitalize only the first character of the filenames
+    df['filename'] = df['filename'].str.capitalize()
+
+    # Rename the columns before creating the table
+    # TODO: use config file values instead
+    # TODO: directly assign to `df.columns` to change all column names at once
+    df = df.rename(columns={'filename': 'Pièce'})
+    df = df.rename(columns={'tvoc': 'COVT (ppb)'})
+    df = df.rename(columns={'co': 'Monoxyde de\ncarbone (ppm)'})
+    df = df.rename(columns={'form': 'Formaldéhyde\n(ppb)'})
+    df = df.rename(columns={'humidity': 'Humidité\nrelative (%)'})
+    df = df.rename(columns={'temp': 'Température (°C)'})
+
+    #log_data_frame(df, filename)
+
+    # Create table
+    fig, ax = plt.subplots(figsize=(7, 4))
+    #ax.axis('tight')
+    ax.axis('off')
+    table = ax.table(cellText=df.values,
+                     colLabels=df.columns,
+                     cellLoc='center',
+                     loc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(2, 2)  # column width, row height
+
+    # Change grid color and set alternating row colors
+    for i in range(len(df) + 1):  # +1 for header row
+        for j in range(len(df.columns)):
+            cell = table[(i, j)]
+            #cell.set_text_props(fontfamily='Noto Sans')
+            cell.set_edgecolor('#bbbbbb')      # Medium light gray
+
+            if i % 2 == 0:
+                cell.set_facecolor('#f4f4f4')  # Very light gray
+            else:
+                cell.set_facecolor('#ffffff')  # White
+
+    # Header row: increase height, make text bold, and add background color
+    for j in range(len(df.columns)):
+        cell = table[(0, j)]
+        cell.set_height(0.15)
+        cell.set_text_props(weight='bold')
+        cell.set_facecolor('#dddddd')          # Light gray
+
+    # First column: change alignment to left, except for the header
+    for i in range(1, len(df) + 1):
+        table[(i, 0)].set_text_props(ha='left')
+
+    plt.savefig(get_plot_filename(filename, stem='snapshots'),
+                bbox_inches='tight', dpi=300)
     plt.close()
 
 
