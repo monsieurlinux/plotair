@@ -57,10 +57,10 @@ def main():
                         help='generate boxplots along with text stats')
     parser.add_argument('-m', '--merge', metavar='FIELD',
                         help='merge field from file1 to file2, and output to file3')
+    parser.add_argument('-M', '--filter-multiplier', type=float, default=1.5, metavar='MULTIPLIER',
+                        help='multiplier for IQR outlier filtering (default: 1.5)')
     parser.add_argument('-o', '--filter-outliers', action='store_true',
                         help='filter out outliers from the plots')
-    parser.add_argument('--filter-multiplier', type=float, default=1.5, metavar='MULTIPLIER',
-                        help='multiplier for IQR outlier filtering (default: 1.5)')
     parser.add_argument('-r', '--reset-config', action='store_true',
                         help='reset configuration file to default')
     parser.add_argument('-s', '--start-date', metavar='DATE',
@@ -69,10 +69,10 @@ def main():
                         help='date at which to stop the plot (YYYY-MM-DD)')
     parser.add_argument('-t', '--title',
                         help='set the plot title')
+    parser.add_argument('-T', '--snapshots', action='store_true',
+                        help='generate a snapshots table from all files')
     parser.add_argument('-v', '--version', action='version',
                         version=f'%(prog)s {__version__}')
-    parser.add_argument('--snapshots', action='store_true',
-                        help='generate a snapshots table from all files')
 
     args = parser.parse_args()
 
@@ -649,6 +649,10 @@ def generate_snapshots(filenames):
                 bbox_inches='tight', dpi=300)
     plt.close()
 
+    # Write a csv file to paste easily in a spreadsheet
+    df.columns = df.columns.str.replace('\n', ' ')
+    df.to_csv(get_filename(filenames[0], stem='snapshots', extension='txt'), index=False)
+    
 
 def remove_units_from_labels(labels):
     return [re.sub(r' \([^)]*\)', '', label) for label in labels]
@@ -776,6 +780,12 @@ def get_plot_title(title, filename):
     if plot_title: plot_title = plot_title.capitalize()
 
     return plot_title
+
+
+def get_filename(filename, stem = '', suffix = '', extension = ''):
+    p = Path(filename)
+    s = stem if stem != '' else p.stem
+    return f'{p.parent}/{s}{suffix}.{extension}'
 
 
 def get_plot_filename(filename, suffix = '', stem = ''):
