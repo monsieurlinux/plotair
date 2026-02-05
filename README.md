@@ -80,9 +80,9 @@ plotair [arguments] FILE [FILE ...]
 
 | Argument              | Short Flag | Description                                          |
 | --------------------- | ---------- | ---------------------------------------------------- |
+| `--help`              | `-h`       | Show help message                                    |
 | `--all-dates`         | `-a`       | Plot all dates (otherwise only latest sequence)      |
 | `--boxplot`           | `-b`       | Generate boxplots along with text stats              |
-| `--help`              | `-h`       | Show help message                                    |
 | `--merge`             | `-m`       | Merge field from file1 to file2, and output to file3 |
 | `--filter-multiplier` | `-M`       | Multiplier for IQR outlier filtering (default: 1.5)  |
 | `--filter-outliers`   | `-o`       | Filter out outliers from the plots                   |
