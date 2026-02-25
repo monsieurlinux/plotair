@@ -32,11 +32,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# Add project root to sys.path so script can be called directly w/o 'python3 -m'
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 # Local imports
 from plotair import __version__
 
@@ -726,6 +721,10 @@ def generate_stats(df, filename, boxplot=False):
 
 def load_config(reset_config = False):
     global CONFIG
+
+    # TODO: PROJECT_ROOT is a temp patch
+    # Automatically get 'plotair' to avoid hardcoding
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
     app_name = 'plotair'
     config_file = 'config.toml'

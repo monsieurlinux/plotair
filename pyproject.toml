@@ -25,7 +25,7 @@ dependencies = [
 Repository = "https://github.com/monsieurlinux/plotair"
 
 [project.scripts]
-plotair = "plotair.main:main"
+plotair = "plotair:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["plotair"]
